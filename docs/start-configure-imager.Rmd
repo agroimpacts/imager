@@ -6,9 +6,7 @@ output:
 ---
 
 ***
-<center>
-[Back to **index**](../README.md)
-</center>
+<p align="center">[Back to **index**](../README.md)</p>
 ***
 
 
@@ -57,9 +55,7 @@ echo $IP
 ```
 
 ***
-<center>
-[Back to top](#the-template-instance) || [Back to **index**](../README.md)
-</center>
+<p align="center">[Back to top](#the-template-instance) || [Back to **index**](../README.md)</p>
 ***
 
 ## Configure your local machine
@@ -109,9 +105,7 @@ And replace 8888 with 9999, and paste it into your browser. That should open a j
 Remember that each time the instance is stopped and then restarted, there is a new public IP created, so you will have to update the IP address in  `~/.ssh/config` 
 
 ***
-<center>
-[Back to top](#the-template-instance) || [Back to **index**](../README.md)
-</center>
+<p align="center">[Back to top](#the-template-instance) || [Back to **index**](../README.md)</p>
 ***
 
 ## Configure the instance to run `imager`
@@ -129,7 +123,5 @@ Or you can use the companion `stop_instance.sh` in this repo. Otherwise within t
 You now have a fully configured instance for running compositer, and you can make an AMI of the stopped instance that is the template for spinning up production instances with larger volume sizes and higher capacity instances to do the heavy work. Instructions for creating an AMI and launching a new instance are in [another document](setup-aws-instance.md). 
 
 ***
-<center>
-[Back to top](#the-template-instance) || [Back to **index**](../README.md)
-</center>
+<p align="center">[Back to top](#the-template-instance) || [Back to **index**](../README.md)</p>
 ***

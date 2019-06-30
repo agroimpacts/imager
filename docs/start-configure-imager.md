@@ -10,11 +10,11 @@ Launch AWS jupyter notebook instance
 
 -----
 
-<center>
+<p align="center">
 
 [Back to **index**](../README.md)
 
-</center>
+</p>
 
 -----
 
@@ -80,12 +80,12 @@ echo $IP
 
 -----
 
-<center>
+<p align="center">
 
 [Back to top](#the-template-instance) || [Back to
 **index**](../README.md)
 
-</center>
+</p>
 
 -----
 
@@ -153,12 +153,12 @@ address in `~/.ssh/config`
 
 -----
 
-<center>
+<p align="center">
 
 [Back to top](#the-template-instance) || [Back to
 **index**](../README.md)
 
-</center>
+</p>
 
 -----
 
@@ -193,11 +193,11 @@ document](setup-aws-instance.md).
 
 -----
 
-<center>
+<p align="center">
 
 [Back to top](#the-template-instance) || [Back to
 **index**](../README.md)
 
-</center>
+</p>
 
 -----
