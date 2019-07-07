@@ -431,11 +431,10 @@ int modified_hot_compositing
     double wt_sum = 0;
     int valid_count_window = 0;
     short int** ts_subset;
-    short int* ts_subset_selected_nir;
+    short int* ts_subset_selected_shadow;
     short int* ts_subset_selected_blue;
-    short int* ts_subset_selected_hot;
-    short int variogram_nir;
-    short int medium_nir;
+    short int variogram_shadow;
+    short int medium_shadow;
 
     char FUNC_NAME[] = "modified_hot_compositing";
 
@@ -445,16 +444,10 @@ int modified_hot_compositing
         RETURN_ERROR ("Allocating ts_subset memory", FUNC_NAME, ERROR);
     }
 
-    ts_subset_selected_nir = (short int*)malloc(valid_date_count*sizeof(short int));
-    if(ts_subset_selected_nir == NULL)
+    ts_subset_selected_shadow = (short int*)malloc(valid_date_count*sizeof(short int));
+    if(ts_subset_selected_shadow == NULL)
     {
-        RETURN_ERROR ("Allocating ts_subset_selected_nir memory", FUNC_NAME, ERROR);
-    }
-
-    ts_subset_selected_hot = (short int*)malloc(valid_date_count*sizeof(short int));
-    if(ts_subset_selected_hot == NULL)
-    {
-        RETURN_ERROR ("Allocating ts_subset_selected_hot memory", FUNC_NAME, ERROR);
+        RETURN_ERROR ("Allocating ts_subset_selected_shadow memory", FUNC_NAME, ERROR);
     }
 
     ts_subset_selected_blue = (short int*)malloc(valid_date_count*sizeof(short int));
@@ -473,7 +466,7 @@ int modified_hot_compositing
                 ts_subset[j][valid_count_window] = buf[j][i];
                 if(j == NIR_INDEX)
                 {
-                    ts_subset_selected_nir[valid_count_window] = buf[NIR_INDEX][i];
+                    ts_subset_selected_shadow[valid_count_window] = (buf[BLUE_INDEX][i] + buf[RED_INDEX][i] + buf[GREEN_INDEX][i])/3;
                     //printf("%i\n", ts_subset_selected[valid_count_window]);
                 }
                 if(j == BLUE_INDEX)
@@ -482,12 +475,6 @@ int modified_hot_compositing
                     //printf("%i\n", ts_subset_selected[valid_count_window]);
                 }
             }
-
-
-            if(buf[BLUE_INDEX][i] - 0.5 * buf[RED_INDEX][i] > 0)
-                ts_subset_selected_hot[valid_count_window] = buf[BLUE_INDEX][i] - 0.5 * buf[RED_INDEX][i] + 800;
-            else
-                ts_subset_selected_hot[valid_count_window] = 0;
 
             valid_count_window++;
 
@@ -513,8 +500,8 @@ int modified_hot_compositing
 
     //m = valid_count_window / 2;
 
-    //medium_nir = (ts_subset_selected[m] + ts_subset_selected[m - 1] + ts_subset_selected[m + 1])/3;
-    single_median_variogram(ts_subset_selected_nir, 0, valid_count_window - 1, &variogram_nir, &medium_nir);
+    //medium_shadow = (ts_subset_selected[m] + ts_subset_selected[m - 1] + ts_subset_selected[m + 1])/3;
+    single_median_variogram(ts_subset_selected_shadow, 0, valid_count_window - 1, &variogram_shadow, &medium_shadow);
     //single_median_quantile(ts_subset_selected_blue, 0, valid_count_window - 1, &quantile_blue, &medium_blue);
     //single_median_variogram(ts_subset_selected_hot, 0, valid_count_window - 1, &variogram_hot, &medium_hot);
     //penalty_slope = - 9.0 / (1000.0 * variogram);
@@ -564,9 +551,9 @@ int modified_hot_compositing
     {
          wt_cloud = (double) 1.0 / (ts_subset_selected_blue[i] * ts_subset_selected_blue[i]);
 
-         if (ts_subset_selected_nir[i] < medium_nir)
+         if (ts_subset_selected_shadow[i] < medium_shadow)
          {
-             ratio = (double)ts_subset_selected_nir[i] / medium_nir;
+             ratio = (double)ts_subset_selected_shadow[i] / medium_shadow;
              wt_shadow = ratio * ratio * ratio * ratio;
          }
          else
@@ -588,14 +575,15 @@ int modified_hot_compositing
         //out_compositing[j][i_col] = (short int)valid_count_window;
     }
 
+    /* free memory*/
     status = free_2d_array(ts_subset);
     if (status != SUCCESS)
     {
         RETURN_ERROR ("Freeing memory: ts_subset\n",
                       FUNC_NAME, FAILURE);
     }
-    free(ts_subset_selected_nir);
-    free(ts_subset_selected_hot);
+    free(ts_subset_selected_shadow);
+    free(ts_subset_selected_blue);
 
     return SUCCESS;
 
