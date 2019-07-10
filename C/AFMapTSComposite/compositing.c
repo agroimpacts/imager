@@ -466,7 +466,8 @@ int modified_hot_compositing
                 ts_subset[j][valid_count_window] = buf[j][i];
                 if(j == NIR_INDEX)
                 {
-                    ts_subset_selected_shadow[valid_count_window] = (buf[BLUE_INDEX][i] + buf[RED_INDEX][i] + buf[GREEN_INDEX][i])/3;
+                   //ts_subset_selected_shadow[valid_count_window] = (buf[BLUE_INDEX][i] + buf[RED_INDEX][i] + buf[GREEN_INDEX][i])/3;
+		   ts_subset_selected_shadow[valid_count_window] = buf[NIR_INDEX][i];
                     //printf("%i\n", ts_subset_selected[valid_count_window]);
                 }
                 if(j == BLUE_INDEX)
