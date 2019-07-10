@@ -145,7 +145,7 @@ def parse_catalog_from_s3(bucket, prefix, catalog_name):
     return catalog
 
 
-def ard_generation(sub_catalog, img_fullpth_catalog, bucket, aoi, tile_id, proj, bounds, n_row, n_col, tmp_pth, logger,
+def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, bounds, n_row, n_col, tmp_pth, logger,
                    dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal):
     """
     generate ARD image per image in sub catalog.
@@ -153,7 +153,6 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, aoi, tile_id, proj,
         sub_catalog: a list recording all images for the focused tile_ids
         img_fullpth_catalog: a catalog for recording full uri path for each planet image
         bucket: Name of the S3 bucket.
-        aoi: aoi to be processed
         tile_id: id of current tile to be processed
         proj: the projection of outputted ARD
         bounds: xmin, xmax, ymin, ymax defining the extent of ard
@@ -171,7 +170,7 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, aoi, tile_id, proj,
     imgname_records = [0] * 366
 
     # local_tile_folder: tmp folder for saving ard in the instance
-    local_tile_folder = os.path.join(tmp_pth, 'aoi{}_tile{}'.format(aoi, tile_id))
+    local_tile_folder = os.path.join(tmp_pth, 'tile{}'.format(tile_id))
     if not os.path.exists(local_tile_folder):
         os.mkdir(local_tile_folder)
 
@@ -472,11 +471,12 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 @click.command()
 @click.option('--config_filename', default='cvmapper_config_composite.yaml', help='The name of the config to use.')
 @click.option('--tile_id', default=None, help='only used for debug mode, user-defined tile_id')
-@click.option('--aoi', default='0', help='specify AOI id to work on')
+@click.option('--aoi', default=None, help='specify AOI id to work on')
+@click.option('--csv_pth', default=None, help='csv path for providing a specified tile list')
 @click.option('--bsave_ard', default=False, help='only used for debug mode, user-defined tile_id')
 @click.option('--s3_bucket', default='activemapper',help='s3 bucket name')
 @click.option('--output_prefix', default='composite_sr', help='output folder prefix')
-def main(s3_bucket, config_filename, tile_id, aoi, bsave_ard, output_prefix):
+def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_prefix):
     """ The primary script
     Args:        s3_bucket (str): Name of the S3 bucket to search for configuration objects
             and save results to
@@ -520,7 +520,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, bsave_ard, output_prefix):
 
     # time zone
     tz = timezone('US/Eastern')
-    logger.info("Progress: starting making ARD images for aoi_{} ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+    logger.info("Progress: starting a compositing task ({})".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # read a catalog for linking planet images and tile id
     img_catalog = parse_catalog_from_s3(s3_bucket, prefix, img_catalog_name)
@@ -534,10 +534,19 @@ def main(s3_bucket, config_filename, tile_id, aoi, bsave_ard, output_prefix):
     if gpd_tile is None:
         logger.error("reading {} failed". format(uri_tile))
 
-    # aoi-based processing(for production)
+    
     if tile_id is None:
-        # read all tiles id for an aoi
-        aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == int(aoi)]['aoi']
+        if aoi is None:
+            if csv_pth is None:
+                logger.info("Error: please provide tile_id, csv_path or aoi_id ({}))".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+                return
+
+            # tile-list processing(for production)
+            aoi_alltiles = pd.read_csv(csv_pth)['tile']
+        else:
+
+            # aoi-based processing(for production)
+            aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
 
         # looping over each tile
         for i in range(len(aoi_alltiles)):
@@ -552,17 +561,17 @@ def main(s3_bucket, config_filename, tile_id, aoi, bsave_ard, output_prefix):
             bounds, (n_row, n_col) = get_extent(tile_geojson, res)
 
             # generate ARD images
-            ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket, aoi, foc_gpd_tile, proj, bounds, nrow, ncol,
+            ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket, tile_id, proj, bounds, n_row, n_col,
                            tmp_pth, logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
 
             # compositing
-            composite_generation(compositing_exe_path, s3_bucket, prefix, aoi_alltiles.iloc[i], tile_id,
-                                 os.path.join(tmp_pth, 'aoi{}_tile{}'.format(aoi, tile_id)), tmp_pth, logger, dry_lower_ordinal,
+            composite_generation(compositing_exe_path, s3_bucket, prefix, foc_gpd_tile, tile_id,
+                                 os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
                                  dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
             logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id, i + 1,
                                                                                                      datetime.now(tz).
                                                                                                      strftime('%Y-%m-%d %H:%M:%S'),))
-        logger.info("Progress: finished aoi_{} ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+        logger.info("Progress: finished compositing task ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # tile-based processing (for debug)
     else:
@@ -575,7 +584,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, bsave_ard, output_prefix):
 
         # ARD generation
         try:
-            ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket,  aoi, int(tile_id),  proj, bounds, n_row, n_col, tmp_pth,
+            ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket,  int(tile_id),  proj, bounds, n_row, n_col, tmp_pth,
                             logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
         except:
             logger.info("Error: ARD generation failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
@@ -589,7 +598,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, bsave_ard, output_prefix):
         # compositing
         try:
             composite_generation(compositing_exe_path, s3_bucket, prefix,  foc_gpd_tile, tile_id,
-                                os.path.join(tmp_pth, 'aoi{}_tile{}'.format(aoi, tile_id)), tmp_pth, logger, dry_lower_ordinal,
+                                os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
                                 dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
         except:
             logger.info("Error: compositing failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
