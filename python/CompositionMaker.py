@@ -102,10 +102,10 @@ def get_extent(extent_geojson, res):
     # txmax = max([row[0] for row in extent_geojson['coordinates'][0]]) + res / 2.0
     # tymin = min([row[1] for row in extent_geojson['coordinates'][0]]) - res / 2.0
     # tymax = max([row[1] for row in extent_geojson['coordinates'][0]]) + res / 2.0
-    txmin = extent_geojson['bbox'][0] - res / 2.0
-    txmax = extent_geojson['bbox'][2] + res / 2.0
-    tymin = extent_geojson['bbox'][1] - res / 2.0
-    tymax = extent_geojson['bbox'][3] + res / 2.0
+    txmin = extent_geojson['bbox'][0] - res * 20
+    txmax = extent_geojson['bbox'][2] + res * 20
+    tymin = extent_geojson['bbox'][1] - res * 20
+    tymax = extent_geojson['bbox'][3] + res * 20
     n_row = ceil((tymax - tymin)/res)
     n_col = ceil((txmax - txmin)/res)
     txmin_new = (txmin + txmax)/2 - n_row / 2 * res
@@ -353,7 +353,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
     # here call gdalwarp directly instead of gdal.warp, cause unexpected bug for gdal.warp
     # out_img = gdal.Warp(out_path_gcs_dry, img, outputBounds=[txmin, tymin, txmax, tymax], resampleAlg=gdal.GRA_Bilinear, width=2000,
                         #height=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
-    cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -dstnodata -9999 -ot ' \
+    cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_dry, out_path_gcs_dry)
 
     run_cmd(cmd, logger)
@@ -372,6 +372,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
     run_cmd(cmd, logger)
 
     cmd = 'gdal_translate -q {} {} -co COMPRESS=LZW -co COPY_SRC_OVERVIEWS=YES -co TILED=YES'.format(out_path_gcs_dry_TCI,
+                                                                                                     out_path_dry)
     run_cmd(cmd, logger)
 
 
@@ -399,7 +400,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
     # out_img = gdal.Warp(out_path_gcs_wet, img, outputBounds=[txmin, tymin, txmax, tymax], resampleAlg=gdal.GRA_Bilinear, width=2000,
                         #height=2000, dstNodata=-9999, xRes=0.05/2000, yRes=0.05/2000, outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
 
-    cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -dstnodata -9999 -ot ' \
+    cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_wet, out_path_gcs_wet)
     run_cmd(cmd, logger)
 
@@ -436,20 +437,21 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
     ##########################################################
     #             delete local composte files                #
     ##########################################################
-    # dry season
-    delete_file(out_path_gcs_dry, logger)
-    delete_file(out_path_pcs_dry, logger)
-    delete_file(out_path_gcs_dry_TCI, logger)
-    delete_file(out_path_dry, logger)
-
-    # wet season
-    delete_file(out_path_gcs_wet, logger)
-    delete_file(out_path_pcs_wet, logger)
-    delete_file(out_path_gcs_wet_TCI, logger)
-    delete_file(out_path_wet, logger)
 
     # ARD folder
     if bsave_ard is False:
+        # dry season
+        delete_file(out_path_gcs_dry, logger)
+        delete_file(out_path_pcs_dry, logger)
+        delete_file(out_path_gcs_dry_TCI, logger)
+        delete_file(out_path_dry, logger)
+
+        # wet season
+        delete_file(out_path_gcs_wet, logger)
+        delete_file(out_path_pcs_wet, logger)
+        delete_file(out_path_gcs_wet_TCI, logger)
+        delete_file(out_path_wet, logger)
+
         # Try to delete the ard image folder
         try:
             shutil.rmtree(ard_folder)
@@ -503,8 +505,8 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
     tiles_geojson_path = params['tile_geojson_path']
 
     # define lower and upper bounds for dry and wet season
-    dry_lower_ordinal = params['dry_lower_ordinal'] # 2017/12/01
-    dry_upper_ordinal = params['dry_upper_ordinal'] # 2018/02/28
+    dry_lower_ordinal = params['dry_lower_ordinal'] # 2018/12/01
+    dry_upper_ordinal = params['dry_upper_ordinal'] # 2019/02/28
     wet_lower_ordinal = params['wet_lower_ordinal'] # 2018/05/01
     wet_upper_ordinal = params['wet_upper_ordinal'] # 2018/09/30
 
