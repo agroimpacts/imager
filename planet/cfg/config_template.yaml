@@ -1,0 +1,35 @@
+imagery:
+  aoiid: test
+  cellgrid_buffer: 0.05
+  # tile_object and grids_tile_filename should be changed 
+  # for different study area, e.g. ghana
+  tile_object: planet/grids_geojson/ghana_tiles.geojson
+  grids_tile_filename: grids_tile_ghana.csv
+  master_grid_object: grid/master_grid.tif
+  # if tile_filter set TRUE
+  # tile_filter_file should be set as well
+  tile_filter: TRUE
+  # one column named tile file
+  tile_filter_file: qtiles_priority.csv
+  output_encoding: utf-8
+  catalog_filename: planet_catalog_db.csv
+  catalog_path: catalog
+  s3_bucket: activemapper
+  s3_catalog_prefix: planet
+  s3_composite_prefix: planet/composite_sr
+
+database:
+  # test or production
+  mode: test
+  db_host: mapper0.crowdmapper.org
+  db_password: 
+  db_production_name: Africa
+  db_sandbox_name: AfricaSandbox
+  db_username: 
+
+rasterfoundry:
+  enabled: True
+  api_key: 
+  api_uri: app.rasterfoundry.com
+  visibility: PRIVATE
+  tileVisibility: PRIVATE
