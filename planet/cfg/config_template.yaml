@@ -1,5 +1,5 @@
 imagery:
-  aoiid: test
+  aoiid: GH0421189_GH0493502_dl_test
   cellgrid_buffer: 0.05
   # tile_object and grids_tile_filename should be changed 
   # for different study area, e.g. ghana
@@ -17,6 +17,21 @@ imagery:
   s3_bucket: ***REMOVED***
   s3_catalog_prefix: planet
   s3_composite_prefix: planet/composite_sr
+  s3_analytic_sr_prefix: planet/analytic_sr_all
+  prefix_geojson: ghana
+  geojson_folder: geojson
+  orderlist_folder: orderlist
+  start_date: 2019-03-01
+  end_date: 2019-03-05
+  item: PSScene4Band
+  asset: analytic_sr
+  filter: TRUE
+  clean: TRUE
+  ## mode: 1 for initial, 2 for fix
+  ## Fix mode doesn't save out the csvs
+  mode: 1
+  aws_cred: cfg/aws_cred.yml
+  catalog_composite_s3: ***REMOVED***
 
 database:
   # test or production
