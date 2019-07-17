@@ -192,9 +192,6 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
     return:
         'extent_geojson' sharply geojson object
     """
-    # initialize a record list for clear observations for each days
-    clear_records = [0] * 366
-    imgname_records = [0] * 366
 
     # local_tile_folder: tmp folder for saving ard in the instance
     local_tile_folder = os.path.join(tmp_pth, 'tile{}'.format(tile_id))
@@ -258,44 +255,33 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
         n_clear_pixels = len(out_msk.GetRasterBand(1).ReadAsArray()[out_msk.GetRasterBand(1).ReadAsArray() == 0])
 
         # firstly, see if clear observation is more than the record; if not, not necessary to process
-        if n_clear_pixels < clear_records[doy-1]:
-            continue
-        else:
-            if n_clear_pixels/n_valid_pixels > 0.2:
-
-                # if already created, delete old files
-                if clear_records[doy-1] > 0:
-                    os.remove(os.path.join(local_tile_folder, imgname_records[doy-1]))
-                    os.remove(os.path.join(local_tile_folder, imgname_records[doy-1]+'.hdr'))
-
-                out_img_b1_med = ndimage.median_filter(out_img.GetRasterBand(1).ReadAsArray(), size=3)
-                out_img_b2_med = ndimage.median_filter(out_img.GetRasterBand(2).ReadAsArray(), size=3)
-                out_img_b3_med = ndimage.median_filter(out_img.GetRasterBand(3).ReadAsArray(), size=3)
-                out_img_b4_med = ndimage.median_filter(out_img.GetRasterBand(4).ReadAsArray(), size=3)
-
-                clear_records[doy-1] = n_clear_pixels
-                imgname_records[doy-1] = outname + img_name[8:len(img_name)]
-                outdriver1 = gdal.GetDriverByName("ENVI")
-                outdata = outdriver1.Create(os.path.join(local_tile_folder,
-                                                         outname+img_name[8:len(img_name)]),
+        if n_clear_pixels/n_valid_pixels > 0.2:
+            out_img_b1_med = ndimage.median_filter(out_img.GetRasterBand(1).ReadAsArray(), size=3)
+            out_img_b2_med = ndimage.median_filter(out_img.GetRasterBand(2).ReadAsArray(), size=3)
+            out_img_b3_med = ndimage.median_filter(out_img.GetRasterBand(3).ReadAsArray(), size=3)
+            out_img_b4_med = ndimage.median_filter(out_img.GetRasterBand(4).ReadAsArray(), size=3)
+        
+            outdriver1 = gdal.GetDriverByName("ENVI")
+            outdata = outdriver1.Create(os.path.join(local_tile_folder,
+                                                    outname+img_name[8:len(img_name)]),
                                             n_col, n_row, 5, gdal.GDT_Int16, options=["INTERLEAVE=BIP"])
-                outdata.GetRasterBand(1).WriteArray(out_img_b1_med)
-                outdata.FlushCache()
-                outdata.GetRasterBand(2).WriteArray(out_img_b2_med)
-                outdata.FlushCache()
-                outdata.GetRasterBand(3).WriteArray(out_img_b3_med)
-                outdata.FlushCache()
-                outdata.GetRasterBand(4).WriteArray(out_img_b4_med)
-                outdata.FlushCache()
-                outdata.GetRasterBand(5).WriteArray(out_msk.GetRasterBand(1).ReadAsArray())
-                outdata.FlushCache()
+            outdata.GetRasterBand(1).WriteArray(out_img_b1_med)
+            outdata.FlushCache()
+            outdata.GetRasterBand(2).WriteArray(out_img_b2_med)
+            outdata.FlushCache()
+            outdata.GetRasterBand(3).WriteArray(out_img_b3_med)
+            outdata.FlushCache()
+            outdata.GetRasterBand(4).WriteArray(out_img_b4_med)
+            outdata.FlushCache()
+            outdata.GetRasterBand(5).WriteArray(out_msk.GetRasterBand(1).ReadAsArray())
+            outdata.FlushCache()
 
-                outdata.SetGeoTransform(out_img.GetGeoTransform())
-                outdata.FlushCache()
-                outdata.SetProjection(proj)
-                outdata.FlushCache()
+            outdata.SetGeoTransform(out_img.GetGeoTransform())
+            outdata.FlushCache()
+            outdata.SetProjection(proj)
+            outdata.FlushCache()
 
-                del outdata
+            del outdata
 
         img = None
         msk = None
