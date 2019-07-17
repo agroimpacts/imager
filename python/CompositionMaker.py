@@ -1,5 +1,9 @@
 """
-This module consisted of two steps: 1) make planet ARD images and 2) call AFMapTSComposite for making composites
+This module is developed to automated the process of making composite images in parallel for MappingAfrica project. The whole process
+is consisted of two steps: 1) make planet ARD images and 2) call AFMapTSComposite (c-based exe) for making composites
+The module can be called by using one of three modes: 1) tile-based, 2)csv-based and 3) aoi based
+Tile and csv-based mode are mainly for testing usage; aoi-based mode is for on-production
+Author: Su Ye (***REMOVED***)
 """
 
 import boto3
@@ -18,6 +22,8 @@ import time
 import yaml
 import subprocess
 from pytz import timezone
+from fixed_thread_pool_executor import FixedThreadPoolExecutor
+
 import shutil
 
 # (this function has been abandoned in the current version,  cause the searching efficiency over s3 is low)
@@ -338,7 +344,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 
     # here call gdalwarp directly instead of gdal.warp, cause unexpected bug for gdal.warp
     # out_img = gdal.Warp(out_path_gcs_dry, img, outputBounds=[txmin, tymin, txmax, tymax], resampleAlg=gdal.GRA_Bilinear, width=2000,
-                        #height=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
+                        #h eight=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
     cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_dry, out_path_gcs_dry)
 
@@ -445,6 +451,53 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
             logger.warning("Error for removing ARD folder {}: {} ".format(ard_folder, e.strerror))
 
 
+def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket, prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path,
+                              dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
+                              res, logger):
+    """
+    executing ARD and composite generation.
+    arg:
+        foc_img_catalog: a list recording all images for a focused tile id
+        foc_gpd_tile: geopandas object indicating the extent of a focused tile, using GCS system
+        tile_id: id of tile to be focused
+        s3_bucket: Name of the S3 bucket.
+        prefix: the prefix for tile_folder and img_folder
+        img_fullpth_catalog: a catalog for recording full uri path for each planet image
+        tmp_path: tmp path defining the path for storing temporal files
+        compositing_exe_path: directory for compositing exe
+        dry_lower_ordinal: lower bounds of ordinal days for dry season
+        dry_upper_ordinal: upper bounds of ordinal days for dry season
+        wet_lower_ordinal: lower bounds of ordinal days for wet season
+        wet_upper_ordinal: upper bounds of ordinal days for wet season
+        bsave_ard: if save ard images
+        output_prefix: prefix for composite in S3
+        res: resolution
+        logger: logging object
+    """
+
+    # read proj and bounds from the first img of aoi
+    sample_img_nm = foc_img_catalog.iloc[0, 0]
+    tile_geojson, proj = get_geojson_pcs(s3_bucket, foc_gpd_tile, sample_img_nm, img_fullpth_catalog, logger)
+    bounds, (n_row, n_col) = get_extent(tile_geojson, res)
+
+    # generate ARD images
+    ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket, tile_id, proj, bounds, n_row, n_col,
+                   tmp_pth, logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
+
+    # compositing
+    try:
+        composite_generation(compositing_exe_path, s3_bucket, prefix, foc_gpd_tile, tile_id,
+                             os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
+                             dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
+    except (OSError, ClientError, subprocess.CalledProcessError) as e:
+        logger.error("Compositing failed for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
+                                                                      .strftime('%Y-%m-%d %H:%M:%S')))
+    else:
+        logger.info("Progress: finished compositing for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
+                                                                                 .strftime('%Y-%m-%d %H:%M:%S')))
+
+
+
 @click.command()
 @click.option('--config_filename', default='cvmapper_config_composite.yaml', help='The name of the config to use.')
 @click.option('--tile_id', default=None, help='only used for debug mode, user-defined tile_id')
@@ -453,7 +506,8 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 @click.option('--bsave_ard', default=False, help='only used for debug mode, user-defined tile_id')
 @click.option('--s3_bucket', default='***REMOVED***',help='s3 bucket name')
 @click.option('--output_prefix', default='composite_sr', help='output folder prefix')
-def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_prefix):
+@click.option('--threads_number', default='default', help='output folder prefix')
+def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_prefix, threads_number):
     """ The primary script
         Args:        
         s3_bucket (str): Name of the S3 bucket to search for configuration objects
@@ -511,11 +565,20 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
     gpd_tile = gpd.read_file(uri_tile)
     if gpd_tile is None:
         logger.error("reading geojson tile '{}' failed". format(uri_tile))
-    
+
     if tile_id is None:
+        # determine thread number to be used
+        if threads_number == 'default':
+            threads_number = multiprocessing.cpu_count() * 2 + 1
+        else:
+            threads_number = int(threads_number)
+
+        ard_composition_executor = FixedThreadPoolExecutor(size=threads_number)
+
         if aoi is None:
             if csv_pth is None:
-                logger.error("Please provide tile_id, csv_path or aoi_id ({}))".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+                logger.error("Please provide tile_id, csv_path or aoi_id ({}))"
+                             .format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
                 return
 
             # tile-list processing(for production)
@@ -527,33 +590,26 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
 
         # looping over each tile
         for i in range(len(aoi_alltiles)):
+
             # retrive all tile info for focused tile_id
             tile_id = int(aoi_alltiles.iloc[i])
             foc_img_catalog = img_catalog.loc[img_catalog['tile'] == tile_id]
-
-            # read proj and bounds from the first img of aoi
-            sample_img_nm = foc_img_catalog.iloc[0, 0]
             foc_gpd_tile = gpd_tile[gpd_tile['tile'] == int(tile_id)]
-            tile_geojson, proj = get_geojson_pcs(s3_bucket, foc_gpd_tile, sample_img_nm, img_fullpth_catalog, logger)
-            bounds, (n_row, n_col) = get_extent(tile_geojson, res)
 
-            # generate ARD images
-            ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket, tile_id, proj, bounds, n_row, n_col,
-                           tmp_pth, logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
+            ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
+                                            prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
+                                            dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
+                                            res, logger)
 
-            # compositing
-            try:
-                composite_generation(compositing_exe_path, s3_bucket, prefix, foc_gpd_tile, tile_id,
-                                     os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
-                                     dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
-            except (OSError, ClientError, subprocess.CalledProcessError) as e:
-                logger.error("Compositing failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
-            else:
-                logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id, i + 1,
-                                                                                                     datetime.now(tz).
-                                                                                                     strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.info("Progress: the total finished tile number is {} ({}))".format(i+1, datetime.now(tz)
+                                                                                      .strftime('%Y-%m-%d %H:%M:%S')))
+
+        # await all tile finished
+        ard_composition_executor.drain()
+
+        # await threadpool to stop
+        ard_composition_executor.close()
+
         logger.info("Progress: finished compositing task ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # tile-based processing (for debug)
@@ -568,29 +624,26 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
         # ARD generation
         try:
             ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket,  int(tile_id),  proj, bounds, n_row, n_col, tmp_pth,
-                            logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
+                           logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
         except:
-            logger.error("ARD generation failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.error("ARD generation failed for tile_id {}, and the total finished tiles is {} ({}))"
+                         .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
         else:
-            logger.info("Progress: finished ARD generation for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.info("Progress: finished ARD generation for tile_id {}, and the total finished tiles is {} ({}))"
+                        .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
         # compositing
         try:
             composite_generation(compositing_exe_path, s3_bucket, prefix,  foc_gpd_tile, tile_id,
-                                os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
-                                dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
+                                 os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
+                                 dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
         except (OSError, ClientError, subprocess.CalledProcessError) as e:
-            logger.error("Compositing failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.error("Compositing failed for tile_id {}, and the total finished tiles is {} ({}))"
+                         .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+
         else:
-            logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                                     datetime.now(tz).
-                                                                                                     strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))"
+                        .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
 if __name__ == '__main__':
     main()
