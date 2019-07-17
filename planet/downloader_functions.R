@@ -30,7 +30,6 @@ idlist_img <- function(params = NULL) {
   asset <- params$imagery$asset
   filter <- params$imagery$filter
   mode <- params$imagery$mode
-  aws_cred <- params$imagery$aws_cred
   
   ## Check the paths and create them
   cat("Checking and creating paths...\n")
@@ -42,7 +41,6 @@ idlist_img <- function(params = NULL) {
                               orderlist_folder)
   dir.create(geojson_path, showWarnings = FALSE)
   dir.create(orderlist_path, showWarnings = FALSE)
-  if(!file.exists(aws_cred)) {stop("Cannot find the aws credential yml file!")}
   
   ## Use the settings to query the list of ids using Planet API and package porder
   cat("Querying the id of the Planet imagery for each supergrid...\n")
@@ -92,8 +90,10 @@ idlist_img <- function(params = NULL) {
                              col.names = "id", 
                              stringsAsFactors = F, 
                              header = F)
-    ids_aoi_each$aoi <- aoi_each$aoi
-    ids_aoi_each$tile <- aoi_each$tile
+    if(nrow(ids_aoi_each) > 0) {
+      ids_aoi_each$aoi <- aoi_each$aoi
+      ids_aoi_each$tile <- aoi_each$tile
+    }
     ids_aoi_each
   }, mc.cores = numCores)
   
@@ -129,11 +129,12 @@ download_img <- function(ids_all = NULL,
   }
   
   # Parse settings
-  prefix_geojson = params$imagery$prefix_geojson
-  orderlist_path = params$imagery$orderlist_folder
-  item = params$imagery$item
-  asset = params$imagery$asset
-  aws_cred = params$imagery$aws_cred
+  prefix_geojson <- params$imagery$prefix_geojson
+  orderlist_path <- params$imagery$orderlist_folder
+  item <- params$imagery$item
+  asset <- params$imagery$asset
+  aws_cred <- params$imagery$aws_cred
+  aws_cred <- file.path(getwd(), aws_cred)
   
   # Make folder
   orderlist_path <- file.path(getwd(), 
@@ -164,19 +165,14 @@ download_img <- function(ids_all = NULL,
                                  "--op aws"),
                           prefix_geojson, orderlist_all_path, 
                           item, asset, aws_cred)
+    system(order_text, intern = TRUE)
+    # order_link <- system(order_text, intern = TRUE)
+    # order_link <- strsplit(order_link, " ")[[1]][4]
+    # order_id <- strsplit(order_link, "/")[[1]][8]
     
-    order_link <- system(order_text, intern = TRUE)
-    order_link <- strsplit(order_link, " ")[[1]][4]
-    
-    cat(sprintf("Downloading the group %s...\n", i))
-    download_text <- sprintf("porder download --url '%s'", order_link)
-    ## There is a bug in porder when downloading to the last one
-    ## but this could be ignored by setting some parameters in system
-    ## until they fix the bug, we can still see the warning at the end.
-    download_status <- system(download_text, intern = TRUE, 
-                              ignore.stdout = TRUE, ignore.stderr = TRUE)
   }, mc.cores = numCores)
-  cat("Finish downloading!!\n")
+  
+  cat("Finish delivery!!\n")
 }
 
 ## WARNING: This function is designed 
