@@ -550,12 +550,12 @@ int modified_hot_compositing
     double ratio;
     for(i = 0; i < valid_count_window; i++)
     {
-         wt_cloud = (double) 1.0 / (ts_subset_selected_blue[i] * ts_subset_selected_blue[i]);
+         wt_cloud = (double) 1.0 / (ts_subset_selected_blue[i] * ts_subset_selected_blue[i] * ts_subset_selected_blue[i]);
 
          if (ts_subset_selected_shadow[i] < medium_shadow)
          {
              ratio = (double)ts_subset_selected_shadow[i] / medium_shadow;
-             wt_shadow = ratio * ratio * ratio * ratio;
+             wt_shadow = ratio * ratio * ratio * ratio * ratio;
          }
          else
              wt_shadow = 1.0;
