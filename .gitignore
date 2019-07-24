@@ -6,3 +6,4 @@
 planet/__pycache__
 planet/rf_client.pyc
 planet/cfg/config.yaml
+planet/cfg/aws_cred.yml
