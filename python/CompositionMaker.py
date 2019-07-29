@@ -622,7 +622,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
         # await threadpool to stop
         ard_composition_executor.close()
 
-        logger.info("Progress: finished compositing task ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+        logger.info("Progress: finished compositing task for aoi {} ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # tile-based processing (for debug)
     else:
