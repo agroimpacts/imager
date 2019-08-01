@@ -33,7 +33,9 @@ keys <- lapply(c(2: length(items)), function(i) {
 })
 scenes <- unlist(keys) %>% 
   data.table(scene_id = .) %>%
-  filter(stringr::str_detect(scene_id, '.tif'))
+  filter(stringr::str_detect(scene_id, '.tif')) %>%
+  filter(stringr::str_detect(scene_id, 
+                             paste0(params$imagery$s3_composite_prefix, "/")))
 
 # Set coninfo
 if (params$database$mode == "production") {
@@ -93,6 +95,14 @@ pre_scenes <- mclapply(1:nrow(scenes), function(i) {
 }, mc.cores = num_cores)
 
 planet_catalog <- do.call(rbind, pre_scenes)
+
+# Check the duplicates
+check_gs <- planet_catalog %>%
+  filter(season == "GS")
+if(summarise(check_gs, n = n_distinct(cell_id)) != nrow(check_gs)) stop("Duplicates in GS images!")
+check_os <- planet_catalog %>%
+  filter(season == "OS")
+if(summarise(check_os, n = n_distinct(cell_id)) != nrow(check_os)) stop("Duplicates in OS images!")
 
 # Write out the catalog file to register RF
 planet_catalog_path <- file.path(params$imagery$catalog_path,
