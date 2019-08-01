@@ -1,4 +1,5 @@
 library(sf)
+library(DBI)
 library(yaml)
 library(aws.s3)
 library(raster)
@@ -37,6 +38,8 @@ planet_catalog <- merge(planet_catalog, planet_catalog_unique, by = "scene_id")
 
 # Updates the database
 # Clean the old ones
+coninfo <- mapper_connect(host = params$database$db_host,
+                          user = "sandbox")
 scenes_data <- tbl(coninfo$con, "scenes_data") %>% 
                   filter(cell_id %in% !!planet_catalog$cell_id) %>% 
                   dplyr::select(cell_id) %>% 
@@ -60,5 +63,5 @@ insert_db <- lapply(1:nrow(planet_catalog), function(i) {
                                  row_catalog$season, row_catalog$col, row_catalog$row, 
                                  row_catalog$url, row_catalog$tms_url, Sys.time())
                   dbExecute(coninfo$con, sql)
-                  db_commit(coninfo$con)
+                  # db_commit(coninfo$con)
 })
