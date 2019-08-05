@@ -24,7 +24,8 @@ import subprocess
 import multiprocessing
 from pytz import timezone
 from fixed_thread_pool_executor import FixedThreadPoolExecutor
-
+from osgeo import gdal_array
+import numpy as np
 import shutil
 
 # (this function has been abandoned in the current version,  cause the searching efficiency over s3 is low)
@@ -179,6 +180,21 @@ def run_cmd(cmd, logger):
         raise
 
 
+def is_valid_image(path, logger):
+    ds = gdal.Open(path)
+    if ds is None:
+        return False
+    
+    rasterArray = np.array(ds.GetRasterBand(1).ReadAsArray())
+    unique_val = np.unique(rasterArray)
+    if len(unique_val) == 1:
+        del ds
+        return False
+    else:
+        del ds
+        return True
+
+
 def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, bounds, n_row, n_col, tmp_pth, logger,
                    dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal):
     """
@@ -269,6 +285,11 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
             continue
         else:
             if n_clear_pixels/n_valid_pixels > 0.2:
+                # if already created, delete old files
+                if clear_records[doy-1] > 0:
+                    os.remove(os.path.join(local_tile_folder, imgname_records[doy-1]))
+                    os.remove(os.path.join(local_tile_folder, imgname_records[doy-1]+'.hdr'))
+
                 out_img_b1_med = ndimage.median_filter(out_img.GetRasterBand(1).ReadAsArray(), size=3)
                 out_img_b2_med = ndimage.median_filter(out_img.GetRasterBand(2).ReadAsArray(), size=3)
                 out_img_b3_med = ndimage.median_filter(out_img.GetRasterBand(3).ReadAsArray(), size=3)
@@ -299,8 +320,11 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
 
                 del outdata
 
-        img = None
-        msk = None
+        del img
+        del msk
+
+        del out_img
+        del out_msk
 
     # delete tmp image and mask
     delete_file(os.path.join(local_tile_folder, '_tmp_img'), logger)
@@ -328,6 +352,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
         output_prefix: prefix for composite in S3 
     """
 
+
     # fetch tile info, which will be used to crop intermediate compositing image
     extent_geojson_gcs = mapping(foc_gpd_tile['geometry'])
     txmin = extent_geojson_gcs['bbox'][0]
@@ -346,21 +371,32 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
         logger.error("compositing error for tile {} at dry season: {}".format(tile_id, e))
         raise
 
+
     # reproject and crop compositing image to align with GCS tile system
     out_path_pcs_dry = os.path.join(tmp_pth, 'tile{}_{}_{}_pcs.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
     out_path_gcs_dry = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
     out_path_gcs_dry_TCI = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs_TCI.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
     out_path_dry = os.path.join(tmp_pth, 'tile{}_{}_{}.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
 
+    # check if composite image is valid
+    if not is_valid_image(out_path_pcs_dry, logger):
+        logger.info("Composition fails for the first time for tile{}_{}_{}".format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
+        # run composite exe
+        p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        if not is_valid_image(out_path_pcs_dry, logger):
+            logger.error("compositing error for tile {} at dry season for twice".format(tile_id))
+
     # here call gdalwarp directly instead of gdal.warp, cause unexpected bug for gdal.warp
     # out_img = gdal.Warp(out_path_gcs_dry, img, outputBounds=[txmin, tymin, txmax, tymax], resampleAlg=gdal.GRA_Bilinear, width=2000,
-                        #h eight=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
+                        # height=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
     cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_dry, out_path_gcs_dry)
 
     run_cmd(cmd, logger)
+    
 
-    #######################################################################################
+    ######################################################################################eo
     #                 convert to Cloud-Optimized Geotiff                                  #
     #        (source: https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF)             #
     #   why create a memory driver filer, not directly created:                           #
@@ -389,11 +425,23 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
         logger.error("compositing error for tile {} at wet season: {}".format(tile_id, e))
         raise
 
+
     # reproject and crop compositing image to align with GCS tile system         
     out_path_pcs_wet = os.path.join(tmp_pth, 'tile{}_{}_{}_pcs.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
     out_path_gcs_wet = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
     out_path_gcs_wet_TCI = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs_TCI.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
     out_path_wet = os.path.join(tmp_pth, 'tile{}_{}_{}.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
+        
+
+    # check if composite image is valid
+    if not is_valid_image(out_path_pcs_wet, logger):
+        logger.info("Composition fails for the first time for tile{}_{}_{}".format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
+        # run composite exe
+        p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        if not is_valid_image(out_path_pcs_wet, logger):
+            logger.error("compositing error for tile {} at wet season for twice".format(tile_id))
+
     # img = gdal.Open(out_path_pcs_wet)
     # if img is None:
         # logger.error("couldn't find pcs-based compositing result for tile {}".format(tile_id))
@@ -405,6 +453,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
     cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_wet, out_path_gcs_wet)
     run_cmd(cmd, logger)
+
 
     # convert to Cloud-Optimized Geotiff          
     cmd = 'gdal_translate -q {} {} -co COMPRESS=LZW -co TILED=YES'. format(out_path_gcs_wet, out_path_gcs_wet_TCI)
@@ -508,8 +557,9 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
                                                                                  .strftime('%Y-%m-%d %H:%M:%S')))
 
     logger.info("Progress: the total finished tile number is {} ({}))".format(total_number, datetime.now(tz)
-                                                                                      .strftime('%Y-%m-%d %H:%M:%S')))
+                          .strftime('%Y-%m-%d %H:%M:%S')))
 
+    
 
 
 @click.command()

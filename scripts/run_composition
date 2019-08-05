@@ -1,0 +1,9 @@
+#!/bin/bash
+composite_exe = /home/ubuntu/imager/python/CompositionMaker.py
+threads_num = 4
+output_prefix = composite_sr
+echo "Enter aoi id"
+read aoi
+
+conda activate composite
+python $composite_exe --aoi=$aoi --threads_number=$threads_num
