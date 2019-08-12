@@ -28,6 +28,10 @@ from osgeo import gdal_array
 import numpy as np
 import shutil
 
+# functional exception
+class FuncException(Exception)
+    pass
+
 # (this function has been abandoned in the current version,  cause the searching efficiency over s3 is low)
 def get_matching_s3_keys(bucket, prefix='', suffix=''):
     """
@@ -332,7 +336,8 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
 
 
 def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, tile_id, ard_folder, tmp_pth,
-                         logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix):
+                         logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, 
+                         wet_upper_ordinal, bsave_ard, output_prefix):
     """
     generate composite image in sub catalog.
     arg:
@@ -380,12 +385,17 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 
     # check if composite image is valid
     if not is_valid_image(out_path_pcs_dry, logger):
-        logger.info("Composition fails for the first time for tile{}_{}_{}".format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
+        logger.info("Composition fails for the first time for tile{}_{}_{} at dry season".format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
         # run composite exe
         p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
         if not is_valid_image(out_path_pcs_dry, logger):
-            logger.error("compositing error for tile {} at dry season for twice".format(tile_id))
+            logger.info("composition fails for tile {} for twice at dry season".format(tile_id))
+            p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            if not is_valid_image(out_path_pcs_dry, logger):
+                logger.error("compositing error for tile {} for the third time at dry season".format(tile_id))
+                raise FuncException("Composition fails")
+
 
     # here call gdalwarp directly instead of gdal.warp, cause unexpected bug for gdal.warp
     # out_img = gdal.Warp(out_path_gcs_dry, img, outputBounds=[txmin, tymin, txmax, tymax], resampleAlg=gdal.GRA_Bilinear, width=2000,
@@ -435,12 +445,16 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 
     # check if composite image is valid
     if not is_valid_image(out_path_pcs_wet, logger):
-        logger.info("Composition fails for the first time for tile{}_{}_{}".format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
+        logger.info("Composition fails for the first time for tile{}_{}_{} at wet season".format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
         # run composite exe
         p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
         if not is_valid_image(out_path_pcs_wet, logger):
-            logger.error("compositing error for tile {} at wet season for twice".format(tile_id))
+            logger.info("composition fail for twice for tile {} at wet season".format(tile_id))
+            p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            if not is_valid_image(out_path_pcs_wet, logger):
+                logger.error("composition fail for the third time for tile {} at wet season".format(tile_id))
+                raise FuncException("Composition fails")
 
     # img = gdal.Open(out_path_pcs_wet)
     # if img is None:
@@ -512,7 +526,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 
 def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket, prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path,
                               dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
-                              res, logger, total_number):
+                              res, logger, total_number, failure_count):
     """
     executing ARD and composite generation.
     arg:
@@ -549,14 +563,15 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
         composite_generation(compositing_exe_path, s3_bucket, prefix, foc_gpd_tile, tile_id,
                              os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
                              dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
-    except (OSError, ClientError, subprocess.CalledProcessError) as e:
-        logger.error("Compositing failed for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
+    except (OSError, ClientError, subprocess.CalledProcessError, FuncException) as e:
+        failure_count = failure_count + 1
+        logger.error("Compositing failed for tile_id {} ; the total failure count is {} ({})".format(tile_id, failure_count, datetime.now(timezone('US/Eastern'))
                                                                       .strftime('%Y-%m-%d %H:%M:%S')))
     else:
         logger.info("Progress: finished compositing for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
                                                                                  .strftime('%Y-%m-%d %H:%M:%S')))
-
-    logger.info("Progress: the total finished tile number is {} ({}))".format(total_number, datetime.now(tz)
+    finally:
+        logger.info("Progress: the total finished tile number is {} ({}))".format(total_number, datetime.now(tz)
                           .strftime('%Y-%m-%d %H:%M:%S')))
 
     
@@ -651,6 +666,8 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
 
             # aoi-based processing(for production)
             aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
+        
+        failure_count = 0
 
         # looping over each tile
         for i in range(len(aoi_alltiles)):
@@ -663,7 +680,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
             ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
                                             prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
                                             dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
-                                            res, logger, i+1)
+                                            res, logger, i+1, failure_count)
 
 
         # await all tile finished
@@ -672,7 +689,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
         # await threadpool to stop
         ard_composition_executor.close()
 
-        logger.info("Progress: finished compositing task for aoi {} ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+        logger.info("Progress: finished compositing task for aoi {}; the total failure_count is {} ({})".format(aoi, failure_count, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # tile-based processing (for debug)
     else:
