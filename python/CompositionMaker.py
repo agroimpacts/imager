@@ -29,7 +29,7 @@ import numpy as np
 import shutil
 
 # functional exception
-class FuncException(Exception)
+class FuncException(Exception):
     pass
 
 # (this function has been abandoned in the current version,  cause the searching efficiency over s3 is low)
