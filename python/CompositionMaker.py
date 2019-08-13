@@ -570,9 +570,7 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
     else:
         logger.info("Progress: finished compositing for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
                                                                                  .strftime('%Y-%m-%d %H:%M:%S')))
-    finally:
-        logger.info("Progress: the total finished tile number is {} ({}))".format(total_number, datetime.now(tz)
-                          .strftime('%Y-%m-%d %H:%M:%S')))
+        total_number = total_number + 1
 
     
 
@@ -668,7 +666,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
             aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
         
         failure_count = 0
-
+        success_count = 0
         # looping over each tile
         for i in range(len(aoi_alltiles)):
 
@@ -680,7 +678,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
             ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
                                             prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
                                             dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
-                                            res, logger, i+1, failure_count)
+                                            res, logger, success_count, failure_count)
 
 
         # await all tile finished
@@ -689,7 +687,8 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
         # await threadpool to stop
         ard_composition_executor.close()
 
-        logger.info("Progress: finished compositing task for aoi {}; the total failure_count is {} ({})".format(aoi, failure_count, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+        logger.info("Progress: finished compositing task for aoi {}; the total tile number to be processed is {}; the success_count is {}; the failure_count is {} ({})"
+                    .format(aoi, len(aoi_alltiles), success_count, failure_count, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # tile-based processing (for debug)
     else:
