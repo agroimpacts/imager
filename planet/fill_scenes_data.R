@@ -22,6 +22,18 @@ imgs <- unique(planet_catalog$url) %>%
 imgs_tb <- merge(imgs, planet_catalog[, c("scene_id", "url")], 
                  by = "url") %>%
                   distinct()
+
+# Filter imgs by scenes_data table
+coninfo <- mapper_connect(host = params$database$db_host,
+                          user = "sandbox")
+scenes_data <- tbl(coninfo$con, "scenes_data") %>% 
+  filter(scene_id %in% !!imgs_tb$scene_id) %>% 
+  dplyr::select(scene_id) %>% 
+  collect() %>%
+  distinct()
+imgs_tb <- imgs_tb %>%
+  filter(!scene_id %in% scenes_data$scene_id)
+
 num_cores <- min(nrow(imgs_tb), detectCores() - 1)
 get_tms_url <- mclapply(1:nrow(imgs_tb), function(i){
   scene_id <- imgs_tb[i, ]$scene_id
