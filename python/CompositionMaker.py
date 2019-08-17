@@ -1,5 +1,9 @@
 """
-This module consisted of two steps: 1) make planet ARD images and 2) call AFMapTSComposite for making composites
+This module is developed to automated the process of making composite images in parallel for MappingAfrica project. The whole process
+is consisted of two steps: 1) make planet ARD images and 2) call AFMapTSComposite (c-based exe) for making composites
+The module can be called by using one of three modes: 1) tile-based, 2)csv-based and 3) aoi based
+Tile and csv-based mode are mainly for testing usage; aoi-based mode is for on-production
+Author: Su Ye (***REMOVED***)
 """
 
 import boto3
@@ -17,8 +21,16 @@ import logging
 import time
 import yaml
 import subprocess
+import multiprocessing
 from pytz import timezone
+from fixed_thread_pool_executor import FixedThreadPoolExecutor
+from osgeo import gdal_array
+import numpy as np
 import shutil
+
+# functional exception
+class FuncException(Exception):
+    pass
 
 # (this function has been abandoned in the current version,  cause the searching efficiency over s3 is low)
 def get_matching_s3_keys(bucket, prefix='', suffix=''):
@@ -172,6 +184,21 @@ def run_cmd(cmd, logger):
         raise
 
 
+def is_valid_image(path, logger):
+    ds = gdal.Open(path)
+    if ds is None:
+        return False
+    
+    rasterArray = np.array(ds.GetRasterBand(1).ReadAsArray())
+    unique_val = np.unique(rasterArray)
+    if len(unique_val) == 1:
+        del ds
+        return False
+    else:
+        del ds
+        return True
+
+
 def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, bounds, n_row, n_col, tmp_pth, logger,
                    dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal):
     """
@@ -262,7 +289,6 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
             continue
         else:
             if n_clear_pixels/n_valid_pixels > 0.2:
-
                 # if already created, delete old files
                 if clear_records[doy-1] > 0:
                     os.remove(os.path.join(local_tile_folder, imgname_records[doy-1]))
@@ -272,12 +298,13 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
                 out_img_b2_med = ndimage.median_filter(out_img.GetRasterBand(2).ReadAsArray(), size=3)
                 out_img_b3_med = ndimage.median_filter(out_img.GetRasterBand(3).ReadAsArray(), size=3)
                 out_img_b4_med = ndimage.median_filter(out_img.GetRasterBand(4).ReadAsArray(), size=3)
-
+        
+            
                 clear_records[doy-1] = n_clear_pixels
                 imgname_records[doy-1] = outname + img_name[8:len(img_name)]
                 outdriver1 = gdal.GetDriverByName("ENVI")
                 outdata = outdriver1.Create(os.path.join(local_tile_folder,
-                                                         outname+img_name[8:len(img_name)]),
+                                                    outname+img_name[8:len(img_name)]),
                                             n_col, n_row, 5, gdal.GDT_Int16, options=["INTERLEAVE=BIP"])
                 outdata.GetRasterBand(1).WriteArray(out_img_b1_med)
                 outdata.FlushCache()
@@ -297,8 +324,11 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
 
                 del outdata
 
-        img = None
-        msk = None
+        del img
+        del msk
+
+        del out_img
+        del out_msk
 
     # delete tmp image and mask
     delete_file(os.path.join(local_tile_folder, '_tmp_img'), logger)
@@ -306,7 +336,8 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
 
 
 def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, tile_id, ard_folder, tmp_pth,
-                         logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix):
+                         logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, 
+                         wet_upper_ordinal, bsave_ard, output_prefix):
     """
     generate composite image in sub catalog.
     arg:
@@ -326,6 +357,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
         output_prefix: prefix for composite in S3 
     """
 
+
     # fetch tile info, which will be used to crop intermediate compositing image
     extent_geojson_gcs = mapping(foc_gpd_tile['geometry'])
     txmin = extent_geojson_gcs['bbox'][0]
@@ -344,21 +376,37 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
         logger.error("compositing error for tile {} at dry season: {}".format(tile_id, e))
         raise
 
+
     # reproject and crop compositing image to align with GCS tile system
     out_path_pcs_dry = os.path.join(tmp_pth, 'tile{}_{}_{}_pcs.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
     out_path_gcs_dry = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
     out_path_gcs_dry_TCI = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs_TCI.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
     out_path_dry = os.path.join(tmp_pth, 'tile{}_{}_{}.tif'.format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
 
+    # check if composite image is valid
+    if not is_valid_image(out_path_pcs_dry, logger):
+        logger.info("Composition fails for the first time for tile{}_{}_{} at dry season".format(tile_id, dry_lower_ordinal, dry_upper_ordinal))
+        # run composite exe
+        p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        if not is_valid_image(out_path_pcs_dry, logger):
+            logger.info("composition fails for tile {} for twice at dry season".format(tile_id))
+            p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            if not is_valid_image(out_path_pcs_dry, logger):
+                logger.error("compositing error for tile {} for the third time at dry season".format(tile_id))
+                raise FuncException("Composition fails")
+
+
     # here call gdalwarp directly instead of gdal.warp, cause unexpected bug for gdal.warp
     # out_img = gdal.Warp(out_path_gcs_dry, img, outputBounds=[txmin, tymin, txmax, tymax], resampleAlg=gdal.GRA_Bilinear, width=2000,
-                        #height=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
+                        # height=2000, dstNodata=-9999,outputType=gdal.GDT_Int16, dstSRS='EPSG:4326')
     cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_dry, out_path_gcs_dry)
 
     run_cmd(cmd, logger)
+    
 
-    #######################################################################################
+    ######################################################################################eo
     #                 convert to Cloud-Optimized Geotiff                                  #
     #        (source: https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF)             #
     #   why create a memory driver filer, not directly created:                           #
@@ -387,11 +435,27 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
         logger.error("compositing error for tile {} at wet season: {}".format(tile_id, e))
         raise
 
+
     # reproject and crop compositing image to align with GCS tile system         
     out_path_pcs_wet = os.path.join(tmp_pth, 'tile{}_{}_{}_pcs.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
     out_path_gcs_wet = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
     out_path_gcs_wet_TCI = os.path.join(tmp_pth, 'tile{}_{}_{}_gcs_TCI.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
     out_path_wet = os.path.join(tmp_pth, 'tile{}_{}_{}.tif'.format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
+        
+
+    # check if composite image is valid
+    if not is_valid_image(out_path_pcs_wet, logger):
+        logger.info("Composition fails for the first time for tile{}_{}_{} at wet season".format(tile_id, wet_lower_ordinal, wet_upper_ordinal))
+        # run composite exe
+        p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        if not is_valid_image(out_path_pcs_wet, logger):
+            logger.info("composition fail for twice for tile {} at wet season".format(tile_id))
+            p = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            if not is_valid_image(out_path_pcs_wet, logger):
+                logger.error("composition fail for the third time for tile {} at wet season".format(tile_id))
+                raise FuncException("Composition fails")
+
     # img = gdal.Open(out_path_pcs_wet)
     # if img is None:
         # logger.error("couldn't find pcs-based compositing result for tile {}".format(tile_id))
@@ -403,6 +467,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
     cmd = 'gdalwarp -q -overwrite -t_srs EPSG:4326 -te {} {} {} {} -r bilinear -ts 2000 2000 -srcnodata -9999 -dstnodata -9999 -ot ' \
           'Int16 {} {}'.format(txmin, tymin, txmax, tymax, out_path_pcs_wet, out_path_gcs_wet)
     run_cmd(cmd, logger)
+
 
     # convert to Cloud-Optimized Geotiff          
     cmd = 'gdal_translate -q {} {} -co COMPRESS=LZW -co TILED=YES'. format(out_path_gcs_wet, out_path_gcs_wet_TCI)
@@ -459,6 +524,57 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
             logger.warning("Error for removing ARD folder {}: {} ".format(ard_folder, e.strerror))
 
 
+def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket, prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path,
+                              dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
+                              res, logger, total_number, failure_count):
+    """
+    executing ARD and composite generation.
+    arg:
+        foc_img_catalog: a list recording all images for a focused tile id
+        foc_gpd_tile: geopandas object indicating the extent of a focused tile, using GCS system
+        tile_id: id of tile to be focused
+        s3_bucket: Name of the S3 bucket.
+        prefix: the prefix for tile_folder and img_folder
+        img_fullpth_catalog: a catalog for recording full uri path for each planet image
+        tmp_path: tmp path defining the path for storing temporal files
+        compositing_exe_path: directory for compositing exe
+        dry_lower_ordinal: lower bounds of ordinal days for dry season
+        dry_upper_ordinal: upper bounds of ordinal days for dry season
+        wet_lower_ordinal: lower bounds of ordinal days for wet season
+        wet_upper_ordinal: upper bounds of ordinal days for wet season
+        bsave_ard: if save ard images
+        output_prefix: prefix for composite in S3
+        res: resolution
+        logger: logging object
+        total_number: finished tile number for progress report
+    """
+
+    # read proj and bounds from the first img of aoi
+    sample_img_nm = foc_img_catalog.iloc[0, 0]
+    tile_geojson, proj = get_geojson_pcs(s3_bucket, foc_gpd_tile, sample_img_nm, img_fullpth_catalog, logger)
+    bounds, (n_row, n_col) = get_extent(tile_geojson, res)
+
+    # generate ARD images
+    ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket, tile_id, proj, bounds, n_row, n_col,
+                   tmp_pth, logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
+
+    # compositing
+    try:
+        composite_generation(compositing_exe_path, s3_bucket, prefix, foc_gpd_tile, tile_id,
+                             os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
+                             dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
+    except (OSError, ClientError, subprocess.CalledProcessError, FuncException) as e:
+        failure_count = failure_count + 1
+        logger.error("Compositing failed for tile_id {} ; the total failure count is {} ({})".format(tile_id, failure_count, datetime.now(timezone('US/Eastern'))
+                                                                      .strftime('%Y-%m-%d %H:%M:%S')))
+    else:
+        logger.info("Progress: finished compositing for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
+                                                                                 .strftime('%Y-%m-%d %H:%M:%S')))
+        total_number = total_number + 1
+
+    
+
+
 @click.command()
 @click.option('--config_filename', default='cvmapper_config_composite.yaml', help='The name of the config to use.')
 @click.option('--tile_id', default=None, help='only used for debug mode, user-defined tile_id')
@@ -467,7 +583,8 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 @click.option('--bsave_ard', default=False, help='only used for debug mode, user-defined tile_id')
 @click.option('--s3_bucket', default='***REMOVED***',help='s3 bucket name')
 @click.option('--output_prefix', default='composite_sr', help='output folder prefix')
-def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_prefix):
+@click.option('--threads_number', default='default', help='output folder prefix')
+def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_prefix, threads_number):
     """ The primary script
         Args:        
         s3_bucket (str): Name of the S3 bucket to search for configuration objects
@@ -525,11 +642,20 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
     gpd_tile = gpd.read_file(uri_tile)
     if gpd_tile is None:
         logger.error("reading geojson tile '{}' failed". format(uri_tile))
-    
+
     if tile_id is None:
+        # determine thread number to be used
+        if threads_number == 'default':
+            threads_number = multiprocessing.cpu_count() * 2
+        else:
+            threads_number = int(threads_number)
+
+        ard_composition_executor = FixedThreadPoolExecutor(size=threads_number)
+
         if aoi is None:
             if csv_pth is None:
-                logger.error("Please provide tile_id, csv_path or aoi_id ({}))".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+                logger.error("Please provide tile_id, csv_path or aoi_id ({}))"
+                             .format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
                 return
 
             # tile-list processing(for production)
@@ -538,37 +664,31 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
 
             # aoi-based processing(for production)
             aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
-
+        
+        failure_count = 0
+        success_count = 0
         # looping over each tile
         for i in range(len(aoi_alltiles)):
+
             # retrive all tile info for focused tile_id
             tile_id = int(aoi_alltiles.iloc[i])
             foc_img_catalog = img_catalog.loc[img_catalog['tile'] == tile_id]
-
-            # read proj and bounds from the first img of aoi
-            sample_img_nm = foc_img_catalog.iloc[0, 0]
             foc_gpd_tile = gpd_tile[gpd_tile['tile'] == int(tile_id)]
-            tile_geojson, proj = get_geojson_pcs(s3_bucket, foc_gpd_tile, sample_img_nm, img_fullpth_catalog, logger)
-            bounds, (n_row, n_col) = get_extent(tile_geojson, res)
 
-            # generate ARD images
-            ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket, tile_id, proj, bounds, n_row, n_col,
-                           tmp_pth, logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
+            ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
+                                            prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
+                                            dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
+                                            res, logger, success_count, failure_count)
 
-            # compositing
-            try:
-                composite_generation(compositing_exe_path, s3_bucket, prefix, foc_gpd_tile, tile_id,
-                                     os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
-                                     dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
-            except (OSError, ClientError, subprocess.CalledProcessError) as e:
-                logger.error("Compositing failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
-            else:
-                logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id, i + 1,
-                                                                                                     datetime.now(tz).
-                                                                                                     strftime('%Y-%m-%d %H:%M:%S'),))
-        logger.info("Progress: finished compositing task ({})".format(aoi, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+
+        # await all tile finished
+        ard_composition_executor.drain()
+
+        # await threadpool to stop
+        ard_composition_executor.close()
+
+        logger.info("Progress: finished compositing task for aoi {}; the total tile number to be processed is {}; the success_count is {}; the failure_count is {} ({})"
+                    .format(aoi, len(aoi_alltiles), success_count, failure_count, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     # tile-based processing (for debug)
     else:
@@ -582,29 +702,26 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
         # ARD generation
         try:
             ard_generation(foc_img_catalog, img_fullpth_catalog, s3_bucket,  int(tile_id),  proj, bounds, n_row, n_col, tmp_pth,
-                            logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
+                           logger, dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal)
         except:
-            logger.error("ARD generation failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.error("ARD generation failed for tile_id {}, and the total finished tiles is {} ({}))"
+                         .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
         else:
-            logger.info("Progress: finished ARD generation for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.info("Progress: finished ARD generation for tile_id {}, and the total finished tiles is {} ({}))"
+                        .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
         # compositing
         try:
             composite_generation(compositing_exe_path, s3_bucket, prefix,  foc_gpd_tile, tile_id,
-                                os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
-                                dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
+                                 os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
+                                 dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix)
         except (OSError, ClientError, subprocess.CalledProcessError) as e:
-            logger.error("Compositing failed for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                             datetime.now(tz).
-                                                                                             strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.error("Compositing failed for tile_id {}, and the total finished tiles is {} ({}))"
+                         .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+
         else:
-            logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))".format(tile_id,  1,
-                                                                                                     datetime.now(tz).
-                                                                                                     strftime('%Y-%m-%d %H:%M:%S'),))
+            logger.info("Progress: finished compositing for tile_id {}, and the total finished tiles is {} ({}))"
+                        .format(tile_id,  1, datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
 if __name__ == '__main__':
     main()
