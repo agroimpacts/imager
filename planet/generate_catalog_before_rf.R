@@ -104,6 +104,9 @@ check_os <- planet_catalog %>%
   filter(season == "OS")
 if(summarise(check_os, n = n_distinct(cell_id)) != nrow(check_os)) stop("Duplicates in OS images!")
 
+# Check the pairs
+if (nrow(check_os) != nrow(check_gs)) cat("Warning: Unpaired GS and OS images!")
+
 # Write out the catalog file to register RF
 planet_catalog_path <- file.path(params$imagery$catalog_path,
                                  params$imagery$catalog_filename)
