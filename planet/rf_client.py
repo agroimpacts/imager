@@ -134,6 +134,12 @@ class RFClient():
             scenes = [scene.id for scene in scenes]
         ).future.result()
 
+    def add_scenes_to_project_id(self, scenes, project):
+        return self.api.client.Imagery.post_projects_projectID_scenes(
+            projectID = project.id,
+            scenes = scenes
+        ).future.result()
+
     def create_map_token(self, project):
         return self.api.client.Imagery.post_map_tokens(MapToken = {
             'name': 'planet_downloader generated token', 
@@ -142,6 +148,9 @@ class RFClient():
 
     def delete_project(self, project):
         return self.api.client.Imagery.delete_projects_projectID(projectID = project.id).result()
+        
+    def delete_scene(self, scene):
+        return self.api.client.Imagery.delete_scenes_sceneID(sceneID=scene.id)
 
     def delete_all_projects(self):
         for project in self.api.projects:
@@ -152,7 +161,23 @@ class RFClient():
                 self.logger.exception('Error Encountered')
                 self.logger.info("Project {} can't be deleted".format(project.id))
 
+    def delete_all_scenes(self):
+        for scene in self.api.api.get_scenes().results:
+            try:
+                self.delete_scene(scene)
+                self.logger.info("Scene {} deleted".format(scene.id))
+            except:
+                self.logger.exception('Error Encountered')
+                self.logger.info("Scene {} can't be deleted".format(scene.id))
+
     def create_scene_project(self, scene_id, scene_uri):
+        if self.enabled:
+            new_project = self.create_project("Project {}".format(scene_id), self.visibility, self.tileVisibility)
+            new_scene = self.create_scene(scene_id, scene_uri, self.visibility)
+            result = self.add_scenes_to_project([new_scene], new_project)
+            return new_scene, Project(new_project, self.api)
+
+    def create_scenes_project(self, scene_id, scene_uri):
         if self.enabled:
             new_project = self.create_project("Project {}".format(scene_id), self.visibility, self.tileVisibility)
             new_scene = self.create_scene(scene_id, scene_uri, self.visibility)
