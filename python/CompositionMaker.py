@@ -588,7 +588,7 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
 @click.option('--s3_bucket', default='***REMOVED***', help='s3 bucket name')
 @click.option('--output_prefix', default='composite_sr', help='s3 composite prefix')
 @click.option('--threads_number', default='default', help='output folder prefix')
-def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_prefix, threads_number):
+def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_ard, output_prefix, threads_number):
     """ The primary script
         Args:        
         s3_bucket (str): Name of the S3 bucket to search for configuration objects
@@ -639,7 +639,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, csv_pth, bsave_ard, output_pr
         aoi_list = pd.read_csv(aoi_csv_pth)['aoi']
         # looping aoi in aoi_list
         for j in range(len(aoi_list)):
-            aoi = int(aoi_list.iloc[i])
+            aoi = int(aoi_list.iloc[j])
             # define log path
             log_path = '%s/log/planet_composite_%s.log' % (os.environ['HOME'], str(aoi))
             logging.basicConfig(filename=log_path, filemode='w', level=logging.INFO)
