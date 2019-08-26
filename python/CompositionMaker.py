@@ -586,7 +586,7 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
 @click.option('--csv_pth', default=None, help='csv path for providing a specified tile list')
 @click.option('--bsave_ard', default=False, help='only used for debug mode, user-defined tile_id')
 @click.option('--s3_bucket', default='activemapper', help='s3 bucket name')
-@click.option('--output_prefix', default='composite_sr', help='s3 composite prefix')
+@click.option('--output_prefix', default='composite_sr_buf', help='s3 composite prefix')
 @click.option('--threads_number', default='default', help='output folder prefix')
 def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_ard, output_prefix, threads_number):
     """ The primary script
@@ -690,21 +690,6 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
                                                                                        datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
 
     elif tile_id is None:
-        # define log path
-        log_path = '%s/log/planet_composite.log' % os.environ['HOME']
-        logging.basicConfig(filename=log_path, filemode='w', level=logging.INFO)
-        logger = logging.getLogger(__name__)
-
-        # time zone
-        tz = timezone('US/Eastern')
-        logger.info("Progress: starting a compositing task ({})".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
-
-        # read a geopandas object for tile geojson
-        uri_tile = "s3://{}/{}/{}".format(s3_bucket, prefix, tiles_geojson_path)
-        gpd_tile = gpd.read_file(uri_tile)
-        if gpd_tile is None:
-            logger.error("reading geojson tile '{}' failed". format(uri_tile))
-
         # determine thread number to be used
         if threads_number == 'default':
             threads_number = multiprocessing.cpu_count() * 2
@@ -713,17 +698,46 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
 
         ard_composition_executor = FixedThreadPoolExecutor(size=threads_number)
 
-        # mode 2: tile based
+        # mode 2: tile-csv based
         if aoi is None:
+            log_path = '%s/log/planet_composite.log' % os.environ['HOME']
+            logging.basicConfig(filename=log_path, filemode='w', level=logging.INFO)
+            logger = logging.getLogger(__name__)
+
+            # time zone
+            tz = timezone('US/Eastern')
+            logger.info("Progress: starting a compositing task ({})".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+
+            # read a geopandas object for tile geojson
+            uri_tile = "s3://{}/{}/{}".format(s3_bucket, prefix, tiles_geojson_path)
+            gpd_tile = gpd.read_file(uri_tile)
+            if gpd_tile is None:
+                logger.error("reading geojson tile '{}' failed". format(uri_tile))
+            
             if csv_pth is None:
                 logger.error("Please provide tile_id, csv_path or aoi_id ({}))"
                              .format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
                 return
 
-            # tile-list processing(for production)
+            # tile-list processing
             aoi_alltiles = pd.read_csv(csv_pth)['tile']
+        # mode 3: aoi based
         else:
-            # mode 3: aoi based
+            # define log path
+            log_path = '%s/log/planet_composite_aoi%s.log' % (os.environ['HOME'], aoi)
+            logging.basicConfig(filename=log_path, filemode='w', level=logging.INFO)
+            logger = logging.getLogger(__name__)
+
+            # time zone
+            tz = timezone('US/Eastern')
+            logger.info("Progress: starting a compositing task ({})".format(datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')))
+
+            # read a geopandas object for tile geojson
+            uri_tile = "s3://{}/{}/{}".format(s3_bucket, prefix, tiles_geojson_path)
+            gpd_tile = gpd.read_file(uri_tile)
+            if gpd_tile is None:
+                logger.error("reading geojson tile '{}' failed". format(uri_tile))
+            
             aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
         
         failure_count = 0
