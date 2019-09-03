@@ -75,7 +75,7 @@ class RFClient():
             self.logger.exception('Error Encountered')
             self.logger.info("Oops, could not get mapToken, using a common uri with token...")
             url = project.tms()
-        
+
         return url
 
     def create_project(self, project_name, visibility = 'PRIVATE', tileVisibility = 'PRIVATE'):
@@ -130,7 +130,7 @@ class RFClient():
 
     def add_scenes_to_project(self, scenes, project):
         return self.api.client.Imagery.post_projects_projectID_scenes(
-            projectID = project.id, 
+            projectID = project.id,
             scenes = [scene.id for scene in scenes]
         ).future.result()
 
@@ -142,19 +142,21 @@ class RFClient():
 
     def create_map_token(self, project):
         return self.api.client.Imagery.post_map_tokens(MapToken = {
-            'name': 'planet_downloader generated token', 
+            'name': 'planet_downloader generated token',
             'project': project.id
         }).result()
 
     def delete_project(self, project):
-        return self.api.client.Imagery.delete_projects_projectID(projectID = project.id).result()
-        
+        return self.api.client.Imagery.delete_projects_projectID(projectID=project.id).result()
+
     def delete_scene(self, scene):
-        return self.api.client.Imagery.delete_scenes_sceneID(sceneID=scene.id)
+        return self.api.client.Imagery.delete_scenes_sceneID(sceneID=scene.id).result()
 
     def delete_all_projects(self):
         for project in self.api.projects:
             try:
+                for scene in project.get_scenes():
+                    self.delete_scene(scene)
                 self.delete_project(project)
                 self.logger.info("Project {} deleted".format(project.id))
             except:
@@ -162,7 +164,7 @@ class RFClient():
                 self.logger.info("Project {} can't be deleted".format(project.id))
 
     def delete_all_scenes(self):
-        for scene in self.api.api.get_scenes().results:
+        for scene in self.api.get_scenes().results:
             try:
                 self.delete_scene(scene)
                 self.logger.info("Scene {} deleted".format(scene.id))
@@ -196,7 +198,7 @@ class RFClient():
 
         return tms_uri
 
-# example main function        
+# example main function
 def main():
     # disable ssl
     # ssl._create_default_https_context = ssl._create_unverified_context
@@ -212,7 +214,7 @@ def main():
 
     # delete all projects
     # rfclient.delete_all_projects()
-    
+
     scene_uri = "s3://activemapper/planet/composite_sr/GS/tile487089_736815_736967.tif"
     scene_id = "tile487089_736815_736967"
 

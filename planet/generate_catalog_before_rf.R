@@ -55,8 +55,9 @@ xy_tabs <- tbl(con, "master_grid") %>%
 DBI::dbDisconnect(con)
 
 # Align composite images and other info
-num_cores <- min(nrow(scenes), detectCores() - 1)
-pre_scenes <- mclapply(1:nrow(scenes), function(i) {
+n <- nrow(scenes)
+num_cores <- min(n, detectCores() - 1)
+pre_scenes <- mclapply(1:n, function(i) {
   row_each <- scenes$scene_id[i]
   url <- file.path("s3://activemapper", row_each)
   items <- strsplit(row_each, "/")[[1]]
@@ -72,12 +73,12 @@ pre_scenes <- mclapply(1:nrow(scenes), function(i) {
     #   filter(id %in% !!grids$id) %>% 
     #   dplyr::select(x, y) %>% 
     #   collect()
-    xy_tabs <- xy_tabs %>%
+    xy_tabs_each <- xy_tabs %>%
       filter(id %in% !!grids$id) %>%
       dplyr::select(x, y)
-      
-    rowcol <- rowcol_from_xy(xy_tabs$x, 
-                             xy_tabs$y, 
+    
+    rowcol <- rowcol_from_xy(xy_tabs_each$x, 
+                             xy_tabs_each$y, 
                              offset = -1) %>%
       data.table()
     
@@ -89,12 +90,12 @@ pre_scenes <- mclapply(1:nrow(scenes), function(i) {
              season = season,
              url = url) %>%
       dplyr::select(-c(id, tile, aoi))
-    
   }
   grids
 }, mc.cores = num_cores)
 
-planet_catalog <- do.call(rbind, pre_scenes)
+planet_catalog <- do.call(rbind, pre_scenes) %>%
+  select(-tile_ng)
 
 # Check the duplicates
 check_gs <- planet_catalog %>%
@@ -114,16 +115,16 @@ write.csv(planet_catalog,
           planet_catalog_path,
           row.names = F)
 
-# Save the catalog file into S3 for cvml
-planet_catalog_s3 <- planet_catalog %>%
-  mutate(uri = url) %>%
-  dplyr::select(-c(url))
-planet_catalog_s3_path <- file.path(params$imagery$s3_catalog_prefix,
-                                    paste0("planet_catalog_", 
-                                           params$imagery$aoiid,
-                                           ".csv"))
-s3write_using(planet_catalog_s3, 
-              FUN = write.csv,
-              row.names = F,
-              object = planet_catalog_s3_path, 
-              bucket = params$imagery$s3_bucket)
+# # Save the catalog file into S3 for cvml
+# planet_catalog_s3 <- planet_catalog %>%
+#   mutate(uri = url) %>%
+#   dplyr::select(-c(url))
+# planet_catalog_s3_path <- file.path(params$imagery$s3_catalog_prefix,
+#                                     paste0("planet_catalog_", 
+#                                            params$imagery$aoiid,
+#                                            ".csv"))
+# s3write_using(planet_catalog_s3, 
+#               FUN = write.csv,
+#               row.names = F,
+#               object = planet_catalog_s3_path, 
+#               bucket = params$imagery$s3_bucket)
