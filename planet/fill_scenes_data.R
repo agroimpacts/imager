@@ -30,18 +30,6 @@ imgs_tb <- merge(imgs, planet_catalog[, c("scene_id", "url")],
                  by = "url") %>%
                   distinct()
 
-# Filter imgs by scenes_data table
-coninfo <- mapper_connect(host = params$database$db_host,
-                          user = "sandbox")
-scenes_data <- tbl(coninfo$con, "scenes_data") %>% 
-  filter(scene_id %in% !!imgs_tb$scene_id) %>%
-  dplyr::select(cell_id, scene_id) %>% 
-  collect() %>%
-  filter(stringr::str_detect(scene_id, 'tile')) %>%
-  distinct()
-imgs_tb <- imgs_tb %>%
-  filter(!scene_id %in% scenes_data$scene_id)
-
 # Register scenes
 num_cores <- min(nrow(imgs_tb), detectCores() - 1)
 register_scene <- mclapply(1:nrow(imgs_tb), function(i){
@@ -93,37 +81,44 @@ build_project <- mclapply(1:nrow(imgs_tb), function(i) {
              tms_url = tms_url)
 }, mc.cores = num_cores)
 planet_catalog_unique <- do.call(rbind, build_project)
-save(planet_catalog_unique, file = "/Users/pinot/downloads/planet_catalog_unique.rda")
 
 planet_catalog <- merge(planet_catalog, planet_catalog_unique, by = "scene_id")
 
-# Updates the database
-# Clean the old ones
-coninfo <- mapper_connect(host = params$database$db_host,
-                          user = "sandbox")
-scenes_data <- tbl(coninfo$con, "scenes_data") %>% 
-                  filter(cell_id %in% !!planet_catalog$cell_id) %>% 
-                  dplyr::select(cell_id) %>% 
-                  collect()
+planet_catalog_s3_path <- file.path(params$imagery$s3_catalog_prefix,
+                                    params$imagery$s3_catalog_name)
+s3write_using(planet_catalog, 
+              FUN = write.csv,
+              row.names = F,
+              object = planet_catalog_s3_path, 
+              bucket = params$imagery$s3_bucket)
 
-cell_ids <- paste0("'", scenes_data$cell_id, "'", collapse = ",")
-sql <- paste0("DELETE FROM scenes_data WHERE cell_id in (", cell_ids, ")")
-dbExecute(coninfo$con, sql)
-db_commit(coninfo$con)
-
-# Insert new ones
-insert_db <- lapply(1:nrow(planet_catalog), function(i) {
-                  row_catalog <- planet_catalog[i, ]
-                  # "cell_id", "scene_id", "col", "row", "season", "url", "tms_url"
-                  sql <- sprintf(paste0("insert into scenes_data",
-                                        " (provider, scene_id, cell_id, season, ",
-                                        "global_col, global_row, ",
-                                        "url, tms_url, date_time) values",
-                                        " ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');"),
-                                 "planet", row_catalog$scene_id, row_catalog$cell_id,
-                                 row_catalog$season, row_catalog$col, row_catalog$row, 
-                                 row_catalog$url, row_catalog$tms_url, Sys.time())
-                  dbExecute(coninfo$con, sql)
-                  # db_commit(coninfo$con)
-})
-# db_commit(coninfo$con)
+# # Updates the database
+# # Clean the old ones
+# coninfo <- mapper_connect(host = params$database$db_host)
+# scenes_data <- tbl(coninfo$con, "scenes_data") %>% 
+#                   filter(cell_id %in% !!planet_catalog$cell_id) %>% 
+#                   dplyr::select(cell_id) %>% 
+#                   collect()
+# if (nrow(scenes_data) > 0) {
+#   cell_ids <- paste0("'", scenes_data$cell_id, "'", collapse = ",")
+#   sql <- paste0("DELETE FROM scenes_data WHERE cell_id in (", cell_ids, ")")
+#   dbExecute(coninfo$con, sql)
+#   db_commit(coninfo$con)
+# }
+# 
+# # Insert new ones
+# insert_db <- lapply(1:nrow(planet_catalog), function(i) {
+#                   row_catalog <- planet_catalog[i, ]
+#                   # "cell_id", "scene_id", "col", "row", "season", "url", "tms_url"
+#                   sql <- sprintf(paste0("insert into scenes_data",
+#                                         " (provider, scene_id, cell_id, season, ",
+#                                         "global_col, global_row, ",
+#                                         "url, tms_url, date_time) values",
+#                                         " ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');"),
+#                                  "planet", row_catalog$scene_id, row_catalog$cell_id,
+#                                  row_catalog$season, row_catalog$col, row_catalog$row, 
+#                                  row_catalog$url, row_catalog$tms_url, Sys.time())
+#                   dbExecute(coninfo$con, sql)
+#                   # db_commit(coninfo$con)
+# })
+# # db_commit(coninfo$con)
