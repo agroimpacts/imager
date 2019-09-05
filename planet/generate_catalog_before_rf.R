@@ -28,7 +28,7 @@ if (isTRUE(params$imagery$tile_filter)) {
 items <- get_bucket(bucket = params$imagery$s3_bucket, 
                     prefix = params$imagery$s3_composite_prefix, 
                     max = Inf)
-keys <- lapply(c(2: length(items)), function(i) {
+keys <- lapply(c(1: length(items)), function(i) {
   items[[i]]$Key
 })
 scenes <- unlist(keys) %>% 
