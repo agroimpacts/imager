@@ -34,4 +34,3 @@ The most important step to do this part is to set the `config.yaml` file (in pla
 
 - Creating temporal mosaics
 
-
