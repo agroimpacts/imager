@@ -16,7 +16,7 @@ All the scripts are in planet folder.
 
 **First** part is delivering Planetscope images to S3 using 'porder' package.
 
-NEED TO UPDATE...
+Simply run the `planet_downloader.R` to deliver the images. But sometimes there might be problem, you also can run the functions one by one to make sure everything is fine. The functions are in `downloader_functions.R`. To understand better about the functions, read the `porder` document first.
 
 **Second** part is registering the images to raster foundry and update the scenes_data table in database.
 
