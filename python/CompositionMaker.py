@@ -124,10 +124,10 @@ def get_extent(extent_geojson, res, buf):
     tymax = extent_geojson['bbox'][3] + res * (20 + buf)
     n_row = ceil((tymax - tymin)/res)
     n_col = ceil((txmax - txmin)/res)
-    txmin_new = (txmin + txmax)/2 - n_row / 2 * res
-    txmax_new = (txmin + txmax)/2 + n_row / 2 * res
-    tymin_new = (tymin + tymax)/2 - n_col / 2 * res
-    tymax_new = (tymin + tymax)/2 + n_col / 2 * res
+    txmin_new = (txmin + txmax)/2 - n_col / 2 * res
+    txmax_new = (txmin + txmax)/2 + n_col / 2 * res
+    tymin_new = (tymin + tymax)/2 - n_row / 2 * res
+    tymax_new = (tymin + tymax)/2 + n_row / 2 * res
     return (txmin_new, txmax_new, tymin_new, tymax_new), (n_row, n_col)
 
 
@@ -527,7 +527,7 @@ def composite_generation(compositing_exe_path, bucket, prefix, foc_gpd_tile, til
 
 def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket, prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path,
                               dry_lower_ordinal, dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
-                              res, logger, success_count, failure_count, gcs_res, buf):
+                              res, logger, gcs_res, buf):
     """
     executing ARD and composite generation.
     arg:
@@ -550,8 +550,7 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
         gcs_res: gcs resolution
         buf: buffer for dealing with edge issues in filtering of cvml
     return
-        success_count: successful tile composition to report
-        failure_count: failure tile composition to report
+        True or False: True represents success
     """
 
     # read proj and bounds from the first img of aoi
@@ -569,14 +568,13 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
                              os.path.join(tmp_pth, 'tile{}'.format(tile_id)), tmp_pth, logger, dry_lower_ordinal,
                              dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix, gcs_res, buf)
     except (OSError, ClientError, subprocess.CalledProcessError, FuncException) as e:
-        failure_count = failure_count + 1
-        logger.error("Compositing failed for tile_id {} ; the total failure count is {} ({})".format(tile_id,
-                                                                                                     failure_count,
-                                                                                                     datetime.now(timezone('US/Eastern'))                                                                                                   .strftime('%Y-%m-%d %H:%M:%S')))
+        logger.error("Compositing failed for tile_id {} ({})".format(tile_id, datetime.now(timezone('US/Eastern')).strftime('%Y-%m-%d %H:%M:%S')))
+        return False
+
     else:
-        success_count = success_count + 1
         logger.info("Progress: finished compositing for tile_id {} ({}))".format(tile_id, datetime.now(timezone('US/Eastern'))
                                                                                  .strftime('%Y-%m-%d %H:%M:%S')))
+        return True
 
 
 @click.command()
@@ -587,7 +585,7 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
 @click.option('--csv_pth', default=None, help='csv path for providing a specified tile list')
 @click.option('--bsave_ard', default=False, help='only used for debug mode, user-defined tile_id')
 @click.option('--s3_bucket', default='***REMOVED***', help='s3 bucket name')
-@click.option('--output_prefix', default='composite_sr_buf', help='s3 composite prefix')
+@click.option('--output_prefix', default='composite_sr_buf_fix', help='s3 composite prefix')
 @click.option('--threads_number', default='default', help='output folder prefix')
 def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_ard, output_prefix, threads_number):
     """ The primary script
@@ -663,7 +661,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
                 threads_number = int(threads_number)
 
             ard_composition_executor = FixedThreadPoolExecutor(size=threads_number)
-            aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
+            aoi_alltiles = gpd_tile.loc[gpd_tile['production_aoi'] == float(aoi)]['tile']
 
             success_count = 0
             failure_count = 0
@@ -674,11 +672,14 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
                 tile_id = int(aoi_alltiles.iloc[i])
                 foc_img_catalog = img_catalog.loc[img_catalog['tile'] == tile_id]
                 foc_gpd_tile = gpd_tile[gpd_tile['tile'] == int(tile_id)]
-
-                ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
-                                                prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
-                                                dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
-                                                res, logger, success_count, failure_count, gcs_res, buf)
+                
+                if ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
+                                                                               prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
+                                                                               dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
+                                                                               res, logger, gcs_res, buf) is True:
+                    success_count = success_count + 1;
+                else:
+                    failure_count = failure_count + 1
 
             # await all tile finished
             ard_composition_executor.drain()
@@ -722,7 +723,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
 
             # tile-list processing
             aoi_alltiles = pd.read_csv(csv_pth)['tile']
-        # mode 3: aoi based
+        # mode 3: aoi based (production mode)
         else:
             # define log path
             log_path = '%s/log/planet_composite_aoi%s.log' % (os.environ['HOME'], aoi)
@@ -739,7 +740,7 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
             if gpd_tile is None:
                 logger.error("reading geojson tile '{}' failed". format(uri_tile))
             
-            aoi_alltiles = gpd_tile.loc[gpd_tile['aoi'] == float(aoi)]['tile']
+            aoi_alltiles = gpd_tile.loc[gpd_tile['production_aoi'] == float(aoi)]['tile']
         
         failure_count = 0
         success_count = 0
@@ -751,10 +752,13 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
             foc_img_catalog = img_catalog.loc[img_catalog['tile'] == tile_id]
             foc_gpd_tile = gpd_tile[gpd_tile['tile'] == int(tile_id)]
 
-            ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
-                                            prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
-                                            dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
-                                            res, logger, success_count, failure_count, gcs_res, buf)
+            if ard_composition_executor.submit(ard_composition_execution, foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
+                                                                             prefix, img_fullpth_catalog, tmp_pth, compositing_exe_path, dry_lower_ordinal,
+                                                                             dry_upper_ordinal, wet_lower_ordinal, wet_upper_ordinal, bsave_ard, output_prefix,
+                                                                             res, logger, gcs_res, buf) is True:
+                success_count = success_count + 1
+            else:
+                failure_count = failure_count + 1
 
         # await all tile finished
         ard_composition_executor.drain()
