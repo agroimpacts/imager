@@ -1,3 +1,5 @@
+# author name: Lei Song
+# description: create project using multiple scenes.
 import yaml
 import argparse
 from rf_client import *

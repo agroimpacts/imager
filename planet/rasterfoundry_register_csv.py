@@ -1,3 +1,6 @@
+# author name: Lei Song
+# description: register images to raster Foundary using a csv.
+# Took from the old script written by Azavara
 import argparse
 import csv
 import yaml
@@ -19,6 +22,7 @@ rfclient = RFClient(config)
 # psql client init
 # psqlclient = PSQLPClient(config)
 # psqlclient.connect()
+
 
 def main(csv_path, psql_mode):
     if (psql_mode != None) and eval(psql_mode):
@@ -57,7 +61,8 @@ def main(csv_path, psql_mode):
     # psqlclient.drain()
     # psqlclient.close()
     # psqlclient.connection_close()
-    
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = 'Generate new TMS links for the given csv file')
     parser.add_argument('--path', help='path to a local csv file, optional, if not set would pick it up from the config file')

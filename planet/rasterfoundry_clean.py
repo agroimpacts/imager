@@ -1,3 +1,6 @@
+# author name: Lei Song
+# description: functions to clean the raster Foundary directory.
+
 import yaml
 import requests
 from rf_client import *
@@ -11,6 +14,14 @@ rfclient = RFClient(config)
 
 
 def list_owned_scenes(user_id, jwt):
+    """
+    List all owned scenes
+    Args:
+        user_id: rfclient.owner
+        jwt: rfclient.api.api_token
+    Returns:
+        list of scenes
+    """
     def make_request(headers, page, page_size=1000):
         return requests.get(
             'https://{host}/api/scenes'.format(host=rf_host),

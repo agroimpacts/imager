@@ -1,4 +1,14 @@
-## This is a file for functions related to gridize the AOI and downloading Plantscope imagery
+## ---------------------------
+## Script name: downloader_functions.R
+##
+## Purpose of script: a list of functions to 
+## run command lines to deliver the Planet images to S3. 
+## More details are in python package porder.
+##
+## Author: Lei Song
+## Email: ***REMOVED***
+## ---------------------------
+
 ## Load the packages
 library(aws.s3)
 library(raster)

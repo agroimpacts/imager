@@ -1,3 +1,13 @@
+## ---------------------------
+## Script name: generate_catalog_before_rf.R
+##
+## Purpose of script: to extract all images in S3
+## and then gather all info into planet_catalog table.
+##
+## Author: Lei Song
+## Email: ***REMOVED***
+## ---------------------------
+
 library(sf)
 library(yaml)
 library(aws.s3)
