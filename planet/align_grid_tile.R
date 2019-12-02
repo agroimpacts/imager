@@ -1,3 +1,14 @@
+## ---------------------------
+## Script name: align_grid_tile.R
+##
+## Purpose of script: to aline the grids and tiles
+## for the study area based on the master_grid.tif
+## and tile file e.g. ghana_tiles.geojson.
+##
+## Author: Lei Song
+## Email: lsong@clarku.edu
+## ---------------------------
+
 library(sf)
 library(yaml)
 library(raster)
