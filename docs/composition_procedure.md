@@ -62,6 +62,8 @@ Notes: we need to send a large number of commands, so better split the list into
 aws s3api head-object --bucket ***REMOVED*** --key planet/analytic_sr_all/003193cc-a8c2-4651-9d61-cc17c8907491/1/files/PSScene4Band/20181128_101218_1006/analytic_sr/20181128_101218_1006_3B_AnalyticMS_SR.tif
 Note: replace the directory of file into the last directory given in your text file
 
-
-    
+#### Running single tile composition for test
+   ```bash
+    python CompositionMaker.py --config_filename=cvmapper_config_composite_congo.yaml --tile_id=680941 --   output_prefix=composite_sr_congo --bsave_ard=False
+    ``` 
   
