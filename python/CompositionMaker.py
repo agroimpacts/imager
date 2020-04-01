@@ -585,9 +585,8 @@ def ard_composition_execution(foc_img_catalog, foc_gpd_tile, tile_id, s3_bucket,
 @click.option('--csv_pth', default=None, help='csv path for providing a specified tile list')
 @click.option('--bsave_ard', default=False, help='only used for debug mode, user-defined tile_id')
 @click.option('--s3_bucket', default='activemapper', help='s3 bucket name')
-@click.option('--output_prefix', default='composite_sr_buf_fix', help='s3 composite prefix')
 @click.option('--threads_number', default='default', help='output folder prefix')
-def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_ard, output_prefix, threads_number):
+def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_ard, threads_number):
     """ The primary script
         Args:        
         s3_bucket (str): Name of the S3 bucket to search for configuration objects
@@ -606,11 +605,15 @@ def main(s3_bucket, config_filename, tile_id, aoi, aoi_csv_pth, csv_pth, bsave_a
 
     tmp_pth = '/tmp'
 
+
     # parse mapper parameter from yaml
     params = parse_yaml_from_s3(s3_bucket, config_filename)['mapper']
 
     # read individual parameters
     prefix = params['prefix']
+
+    # outprefix
+    output_prefix = params['output_prefix']
 
     # fetching a table linking  planet images name and tile id
     img_catalog_name = params['img_catalog_name']
