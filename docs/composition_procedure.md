@@ -7,7 +7,7 @@ The steps are as following:
 #### Step 1: create instances 
 1) Download script launch_ami_production.sh in github repo ''./imager/tool/create_ami_production.sh' (if you decide to use the old image, please skip this step)
 
-2) Create spot-based instance based on ami via editing /imager/tool/launch_ami_production.sh:
+2) Create spot-based instance based on ami via editing /imager/scripts/launch_ami_production.sh:
 a. Change ‘INAME’ (line 5) each time into the ID of the instance you gonna to create. For example, if it is the third instance you would create, please suggested to give a name as “planet_compositer_spot3”
 b. Update AMIID (line 1) to the new ID (if you decide to use the old image, please skip this step)
 c. Specify the spot life cycle: change ‘ValidUntil’ in Line 9 based your need
@@ -38,6 +38,19 @@ Log into the composition instance you just launched
 5. After the production is finished
     Once it finished, the instance would send a notisficiation email to your email address. Please check your junk folder also, and the notisification email is likely to be misidentified as junk email by your email app.
     You need to cancel spot-based instance after it is finished
+
+3) Run for a new region:
+   a. change in S3://***REMOVED***//cvmapper_config_composite_congo.yaml, and then rename and upload it to S3://***REMOVED***
+    output_prefix: composite_sr_congo
+    tile_geojson_path: new_tile_geojson_path
+    img_catalog_name: new_img_catalog_name
+    img_catalog_pth: new_img_catalog_pth
+    dry_lower_ordinal: new_dry_lower_ordinal
+    dry_upper_ordinal: new_dry_upper_ordinal  
+    wet_lower_ordinal: new_wet_lower_ordinal
+    wet_upper_ordinal: new_wet_upper_ordinal
+   b. Once you started the instance, change 'config_filenm' in run_composition_aoi.sh into the new yaml name you gave in the above step, and then you should be ready to go
+
 
 #### Step3: run make-up test
 1) detected the composites that are missing from step2 by modifying missingtile_detector.R in the git repo: /imager/scripts. Upload csv to the folder path: /home/ubuntu/source
