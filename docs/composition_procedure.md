@@ -77,6 +77,8 @@ Note: replace the directory of file into the last directory given in your text f
 
 #### Running single tile composition for test
    ```bash
-    python CompositionMaker.py --config_filename=cvmapper_config_composite_congo.yaml --tile_id=680941 --   output_prefix=composite_sr_congo --bsave_ard=False
+    cd imager/python
+    conda activate composite
+    python CompositionMaker.py --config_filename=cvmapper_config_composite_congo.yaml --tile_id=680941 --bsave_ard=False
     ``` 
   
