@@ -1,8 +1,7 @@
 #!/bin/bash
 composite_exe=/home/ubuntu/imager/python/CompositionMaker.py
-config_filenm=cvmapper_config_composite.yaml
+config_filenm=cvmapper_config_composite_congo.yaml
 threads_num=4
-output_prefix=composite_sr
 echo "Enter aoi"
 read aoi_id
 
