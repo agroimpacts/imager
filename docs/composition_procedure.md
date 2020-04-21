@@ -58,7 +58,7 @@ Log into the composition instance you just launched
     cd /home/ubuntu/imager/python
     screen
     conda activate composite
-    python CompositionMaker.py --csv_pth=/home/ubuntu/source/missingtiles_0902019.csv --threads_number=4
+    python CompositionMaker.py --csv_pth=/home/ubuntu/source/missingtiles_04202020.csv --config_filename=cvmapper_config_composite_congo.yaml --threads_number=8
     ```
     cltl+a+d
     Note: you may need to split missingtiles into two files,  3 month and 4 month, and run them separately using different procedures
