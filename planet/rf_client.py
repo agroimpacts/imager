@@ -31,6 +31,7 @@ class RFClient():
             self.api_token_decoded = None
             self.owner = None
         self.datasource = {"id": "e4d1b0a0-99ee-493d-8548-53df8e20d2aa"} # 4-band PlanetScope
+        # self.datasource = {"id": "6d03b24d-5a29-4004-a27f-3dda48e2eedb"} # Probability
         # https://assets.planet.com/docs/Planet_Combined_Imagery_Product_Specs_letter_screen.pdf
         self.bands = [
                 {

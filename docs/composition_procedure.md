@@ -4,12 +4,12 @@
 These notes describe the steps for running planet image composition for productions
 
 The steps are as following:
+Pre: download github imager repo
 #### Step 1: create instances 
-1) Download script launch_ami_production.sh in github repo ''./imager/tool/create_ami_production.sh' (if you decide to use the old image, please skip this step)
-
+1) Run script launch_ami_production.sh in github repo ''./imager/tool/create_ami_production.sh' (if you decide to use the old image, please skip this step)
 2) Create spot-based instance based on ami via editing /imager/scripts/launch_ami_production.sh:
 a. Change ‘INAME’ (line 5) each time into the ID of the instance you gonna to create. For example, if it is the third instance you would create, please suggested to give a name as “planet_compositer_spot3”
-b. Update AMIID (line 1) to the new ID (if you decide to use the old image, please skip this step)
+b. Update AMIID (line 1) to the new ID, and make sure that it is alighed with amiid of composition_V2 (if you decide to use the old image, please skip this step)
 c. Specify the spot life cycle: change ‘ValidUntil’ in Line 9 based your need
 3) Run launch_ami_production.Run this script locally to launch a spot-based instance: 
     ```bash
@@ -23,7 +23,7 @@ Log into the composition instance you just launched
     cd /home/ubuntu/imager/scripts
     ```
     
-    Note: For aoi 10, 11, 13, 14, 16, you may need want to change the window of defined season, please create a new yaml and upload to s3 first, and then modify bash script ‘run_composition_aoi.sh,’: for example, if you want to increase the window of dry season into four month, make cvmapper_config_composite_4monthdry.yaml and upload it to S3://***REMOVED***, and then change yaml name in the bash script by modifying ‘config_filenm=cvmapper_config_composite.yaml’ to ‘config_filenm=cvmapper_config_composite_4monthdry.yaml’ in  /home/ubuntu/imager/scripts/run_composition_aoi.sh, then run.
+    Note: For aoi 10, 11, 13, 14, 16 in ghana, you need to change the window of defined season, please create a new yaml and upload to s3 first, and then modify bash script ‘run_composition_aoi.sh,’: for example, if you want to increase the window of dry season into four month, make cvmapper_config_composite_4monthdry.yaml and upload it to S3://***REMOVED***, and then change yaml name in the bash script by modifying ‘config_filenm=cvmapper_config_composite.yaml’ to ‘config_filenm=cvmapper_config_composite_4monthdry.yaml’ in  /home/ubuntu/imager/scripts/run_composition_aoi.sh, then run.
 
 2) Run composition using screen 
     ```bash
@@ -35,11 +35,10 @@ Log into the composition instance you just launched
     bash -i run_composition_aoi.sh
     ```
     Input the aoi name, and then 'ctrl + A + D' to return to main screen. You can feel free to log out the instance 
-5. After the production is finished
-    Once it finished, the instance would send a notisficiation email to your email address. Please check your junk folder also, and the notisification email is likely to be misidentified as junk email by your email app.
+5. Once it finished, the instance would send a notisficiation email to your email address. If you didn't receive it, please check your junk folder also, and the notisification email is likely to be misidentified as junk email by your email app.
     You need to cancel spot-based instance after it is finished
 
-3) Run for a new region:
+3) (optional) In case for a new region:
    a. change in S3://***REMOVED***//cvmapper_config_composite_congo.yaml, and then rename and upload it to S3://***REMOVED***
     output_prefix: composite_sr_congo
     tile_geojson_path: new_tile_geojson_path
@@ -59,9 +58,9 @@ Log into the composition instance you just launched
     cd /home/ubuntu/imager/python
     screen
     conda activate composite
-    python CompositionMaker.py --csv_pth=/home/ubuntu/source/missingtiles_0902019.csv --threads_number=4
+    python CompositionMaker.py --csv_pth=/home/ubuntu/source/missingtiles_04202020.csv --config_filename=cvmapper_config_composite_congo.yaml --threads_number=8
     ```
-    cltr+a+d
+    cltl+a+d
     Note: you may need to split missingtiles into two files,  3 month and 4 month, and run them separately using different procedures
 
 #### Putting to glacial:
@@ -77,6 +76,8 @@ Note: replace the directory of file into the last directory given in your text f
 
 #### Running single tile composition for test
    ```bash
-    python CompositionMaker.py --config_filename=cvmapper_config_composite_congo.yaml --tile_id=680941 --   output_prefix=composite_sr_congo --bsave_ard=False
+    cd imager/python
+    conda activate composite
+    python CompositionMaker.py --config_filename=cvmapper_config_composite_congo.yaml --tile_id=680941 --bsave_ard=False
     ``` 
   

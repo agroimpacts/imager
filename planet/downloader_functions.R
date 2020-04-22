@@ -70,7 +70,7 @@ idlist_img <- function(params = NULL) {
       query_text <- sprintf(paste0("porder idlist --input '%s' ",
                                    "--start '%s' --end '%s' --item '%s' ",
                                    "--asset '%s' ",
-                                   "--number 1000 ",
+                                   "--number 10000 ",
                                    "--outfile '%s' ",
                                    ## May 29, 2019, add the filter option
                                    "--filter 'range:view_angle:-3:3' ",
@@ -83,7 +83,7 @@ idlist_img <- function(params = NULL) {
       query_text <- sprintf(paste0("porder idlist --input '%s' ",
                                    "--start '%s' --end '%s' --item '%s' ",
                                    "--asset '%s' ",
-                                   "--number 1000 ",
+                                   "--number 10000 ",
                                    "--outfile '%s'"), 
                             path, start_date,
                             end_date, item, 
@@ -92,7 +92,7 @@ idlist_img <- function(params = NULL) {
     
     cmd_run <- system(query_text, intern = TRUE)
     ## Arbitrary checking
-    if (!grepl("^Total", cmd_run[3])) {
+    if (!grepl("^Total", cmd_run[4])) {
       stop("Something wrong with the query, better to check.")
     }
     
@@ -170,7 +170,7 @@ download_img <- function(ids_all = NULL,
     order_text <- sprintf(paste0("porder order --name '%s_order' ",
                                  "--idlist '%s' ",
                                  "--item '%s' ",
-                                 "--asset '%s' ",
+                                 "--bundle '%s' ",
                                  "--aws '%s' ",
                                  "--op aws"),
                           prefix_geojson, orderlist_all_path, 
