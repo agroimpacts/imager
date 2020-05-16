@@ -243,6 +243,8 @@ def ard_generation(sub_catalog, img_fullpth_catalog, bucket, tile_id, proj, boun
     # iterate over each planet image for focused tile_id
     for i in range(len(sub_catalog)):
         img_name = sub_catalog.iloc[i,0]
+        if len(s[s.str.contains(img_name, na=False)]) == 0:
+            continue
         # sub_img_name = get_matching_s3_keys(bucket, prefix=prefix_x, suffix="{}_3B_AnalyticMS_SR.tif".format(img_name))
         single_img_pth = img_fullpth_catalog.iloc[s[s.str.contains(img_name,na=False)].index.get_level_values(0)].values[0][0]
         if single_img_pth is None:
