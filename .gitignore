@@ -6,5 +6,6 @@
 planet/__pycache__
 planet/rf_client.pyc
 planet/cfg
+planet/data
 !planet/cfg/config_template.yaml
 !planet/cfg/aws_cred_template.yaml
