@@ -48,3 +48,11 @@ rasterfoundry:
   api_uri: app.rasterfoundry.com
   visibility: PRIVATE
   tileVisibility: PRIVATE
+probability:
+  s3_header: /vsis3
+  s3_bucket: ***REMOVED***
+  s3_tiff_perfix: classified-images/congo/
+  s3_cogtiff_perfix: classified-images/congo_cog
+  s3_catalog_prob: classified-images/probability_catalog_congo.csv
+
+  

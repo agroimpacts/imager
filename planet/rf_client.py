@@ -1,19 +1,16 @@
 from rasterfoundry.api import API
 from rasterfoundry.models import Project
-from rasterfoundry.models import MapToken
 
 import logging
 import configparser
-import ssl
 import jwt
 import uuid
-import json
+
 
 # https://docs.rasterfoundry.com/#/
 class RFClient():
     def __init__(self, config):
         rf_config = config['rasterfoundry']
-        imagery_config = config['imagery']
         self.api_key = rf_config['api_key']
         self.api_uri = rf_config['api_uri']
         self.visibility = rf_config['visibility']
@@ -63,7 +60,6 @@ class RFClient():
             self.owner = self.api_token_decoded['sub']
 
     def tms_with_map_token(self, project):
-        url = ''
         try:
             tile_path = '/tiles/{id}/{{z}}/{{x}}/{{y}}/'.format(id = project.id)
             token = self.create_map_token(project).id
@@ -199,6 +195,7 @@ class RFClient():
 
         return tms_uri
 
+
 # example main function
 def main():
     # disable ssl
@@ -222,6 +219,7 @@ def main():
     tms_uri = rfclient.create_tms_uri(scene_id, scene_uri)
 
     print(tms_uri)
+
 
 if __name__ == "__main__":
     main()
