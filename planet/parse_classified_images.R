@@ -54,19 +54,3 @@ tiles_cls <- do.call(rbind, gather_data)
 write.csv(tiles_cls, 
           "catalog/tiles_cls.csv",
           row.names = F)
-
-# Register scenes
-num_cores <- min(nrow(imgs_tb), detectCores() - 1)
-register_scene <- mclapply(1:nrow(tiles_cls), function(i){
-  cls_id <- gsub(".tif", "", tiles_cls[i, ]$cls_id)
-  url <- tiles_cls[i, ]$url
-  cmd_text <- sprintf(paste0("python3.6 rasterfoundary_register_cls.py ",
-                             "--scene_id %s ",
-                             "--url %s"),
-                      cls_id, url)
-  cls_rf_id <- system(cmd_text, intern = TRUE)
-  data.table(cls_id = cls_id, cls_rf_id = cls_rf_id)
-}, mc.cores = num_cores)
-cls_rf_unique <- do.call(rbind, register_scene)
-
-

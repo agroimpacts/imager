@@ -46,7 +46,7 @@ sites <- sites %>%
 tms_sites <- left_join(scenes, sites, by = c("cell_id" = "id"))
 grps <- tms_sites %>% dplyr::select(tilex, tiley,
                                     grp) %>% distinct() %>%
-  mutate(prob_path = paste0("classified-images/congo_whole_cog/image_c", 
+  mutate(prob_path = paste0(params$probability$s3_cogtiff_perfix, "/image_c", 
                             tilex, "_r", tiley, ".tif"))
 
 ################## List all generated probability imagery ################
