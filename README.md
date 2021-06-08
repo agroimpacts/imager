@@ -52,4 +52,7 @@ The most important step to do this part is to set the `config.yaml` file
 (in planet/cfg), then run `aligh_grid_tile.R`,
 `generate_catalog_before_rf.R`, and `fill_scenes_data.R` one by one.
 
-  - Creating temporal mosaics
+**Third** is creating cloud-free composite. Instructions for launching composition procedure can be found [here](docs/composition_procedure.md)
+
+**If you find this package useful, please cite**
+Estes, L. D., Ye, S., Song, L., Luo, B., Eastman, J. R., Meng, Z., ... & Caylor, K. (2021). High resolution, annual maps of the characteristics of smallholder-dominated croplands at national scales (https://eartharxiv.org/repository/view/2155/)
