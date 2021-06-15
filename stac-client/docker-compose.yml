@@ -1,0 +1,41 @@
+version: '2.3'
+services:
+  database:
+    image: quay.io/azavea/postgis:3-postgres12.2-slim
+    environment:
+      - POSTGRES_USER=franklin
+      - POSTGRES_PASSWORD=franklin
+      - POSTGRES_DB=franklin
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "franklin"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    command: postgres -c log_statement=all
+  franklin:
+    image: quay.io/azavea/franklin:1a6c6a2
+    depends_on:
+      database:
+        condition: service_healthy
+    command:
+      - serve
+      - --with-transactions
+      - --with-tiles
+      - --run-migrations
+    volumes:
+      - ./:/opt/franklin/
+    environment:
+      - ENVIRONMENT=development
+      - DB_HOST=database.service.internal
+      - DB_NAME=franklin
+      - DB_USER=franklin
+      - DB_PASSWORD=franklin
+      - AWS_PROFILE
+      - AWS_REGION
+    links:
+      - database:database.service.internal
+    ports:
+      - "9090:9090" 
