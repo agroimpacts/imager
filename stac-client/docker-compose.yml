@@ -27,6 +27,7 @@ services:
       - --run-migrations
     volumes:
       - ./:/opt/franklin/
+      - $HOME/.aws:/var/lib/franklin/.aws
     environment:
       - ENVIRONMENT=development
       - DB_HOST=database.service.internal
