@@ -141,41 +141,118 @@ Once you have a collection, you can add items to it. An _item_ is an individual 
     "coordinates": [
       [
         [
-          -115.405456,
-          35.545961
+          -15.0002052,
+          28.9282827
         ],
         [
-          -115.387092,
-          35.545717
+          -15.0002033,
+          27.9371483
         ],
         [
-          -115.38602,
-          35.599179
+          -13.8842036,
+          27.9326277
         ],
         [
-          -115.404396,
-          35.599424
+          -13.8737609,
+          28.9235723
         ],
         [
-          -115.405456,
-          35.545961
+          -15.0002052,
+          28.9282827
         ]
       ]
     ]
   },
   "bbox": [
-    -115.405456,
-    35.545716999999996,
-    -115.38602,
-    35.599424
+    -15.002052,
+    27.9326277,
+    -13.8737609,
+    28.9282827
   ],
   "links": [],
   "assets": {
-    "TODO need a public COG to put somewhere"
+    "data": {
+      "href": "s3://rasterfoundry-production-data-us-east-1/demo-cogs/s2-canary-islands-rgb-cog.tif",
+      "title": "RGB COG from Sentinel-2 bands",
+      "description": "Composite image from bands 4, 3, and 2 of a Sentinel-2 image over the Canary Islands",
+      "roles": ["data"],
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized" 
+    }
   },
   "collection": "my-first-collection",
   "properties": {
-    "datetime": "2014-05-30T16:12:00Z"
+    "datetime": "2021-06-16T00:00:00Z"
   }
 }
 ```
+
+In this case, `assets.data` refers to a COG that lives on S3. You can POST that item to the collection you
+created a moment ago like so:
+
+```bash
+$ echo '{
+  "id": "public cog",
+  "stac_version": "1.0.0",
+  "stac_extensions": [],
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -15.0002052,
+          28.9282827
+        ],
+        [
+          -15.0002033,
+          27.9371483
+        ],
+        [
+          -13.8842036,
+          27.9326277
+        ],
+        [
+          -13.8737609,
+          28.9235723
+        ],
+        [
+          -15.0002052,
+          28.9282827
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -15.002052,
+    27.9326277,
+    -13.8737609,
+    28.9282827
+  ],
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "s3://rasterfoundry-production-data-us-east-1/demo-cogs/s2-canary-islands-rgb-cog.tif",
+      "title": "RGB COG from Sentinel-2 bands",
+      "description": "Composite image from bands 4, 3, and 2 of a Sentinel-2 image over the Canary Islands",
+      "roles": ["data"],
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized" 
+    }
+  },
+  "collection": "my-first-collection",
+  "properties": {
+    "datetime": "2021-06-16T00:00:00Z"
+  }
+}' | curl -X POST -d@- http://localhost:9090/collections/my-first-collection/items
+```
+
+Then if you list your collections items:
+
+```bash
+$ curl http://localhost:9091/collections/my-first-collection/items
+```
+
+You'll see the item you created.
+
+Most STAC interaction is pretty much like this -- it centers on items and collections, and sometimes
+some extra metadata that you can attach to collections and items. Scripts in this directory will make that interaction
+easier and do it with Python instead of bash commands.
