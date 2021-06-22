@@ -388,7 +388,7 @@ int get_args
     // for production
     else if(argc == 6)
     {
-        printf("argc == 6 \n");
+        // printf("argc == 6 \n");
         strcpy(in_path, argv[1]);
         strcpy(out_path, argv[2]);
         *tile_id = atoi(argv[3]);

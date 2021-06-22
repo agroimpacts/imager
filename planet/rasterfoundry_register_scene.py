@@ -11,8 +11,8 @@ rfclient = RFClient(config)
 
 
 def main(scene_id, url):
-    tms_url = rfclient.create_tms_uri(scene_id, url)
-    print(tms_url)
+    scene = rfclient.create_scene(scene_id, url)
+    print(scene.id)
 
 
 if __name__ == "__main__":

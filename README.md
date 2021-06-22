@@ -20,7 +20,11 @@ All the scripts are in planet folder.
 **First** part is delivering Planetscope images to S3 using ‘porder’
 package.
 
-NEED TO UPDATE…
+Simply run the `planet_downloader.R` to deliver the images. But
+sometimes there might be problem, you also can run the functions one by
+one to make sure everything is fine. The functions are in
+`downloader_functions.R`. To understand better about the functions, read
+the `porder` document first.
 
 **Second** part is registering the images to raster foundry and update
 the scenes\_data table in database.
@@ -48,10 +52,12 @@ The most important step to do this part is to set the `config.yaml` file
 (in planet/cfg), then run `aligh_grid_tile.R`,
 `generate_catalog_before_rf.R`, and `fill_scenes_data.R` one by one.
 
--   Creating temporal mosaics
+**Third** is creating cloud-free composite. Instructions for launching composition procedure can be found [here](docs/composition_procedure.md)
+
+## Citation:
+Estes, L. D., Ye, S., Song, L., Luo, B., Eastman, J. R., Meng, Z., ... & Caylor, K. (2021). High resolution, annual maps of the characteristics of smallholder-dominated croplands at national scales (https://eartharxiv.org/repository/view/2155/)
 
 ## Acknowledgements
-
 The primary support for this work was provided by Omidyar Network’s
 Property Rights Initiative, now PLACE. Computing support was provided by
 the AWS Cloud Credits for Research program and the Amazon Sustainability
