@@ -1,4 +1,14 @@
-## This is a file for functions related to gridize the AOI and downloading Plantscope imagery
+## ---------------------------
+## Script name: downloader_functions.R
+##
+## Purpose of script: a list of functions to 
+## run command lines to deliver the Planet images to S3. 
+## More details are in python package porder.
+##
+## Author: Lei Song
+## Email: lsong@clarku.edu
+## ---------------------------
+
 ## Load the packages
 library(aws.s3)
 library(raster)
@@ -60,7 +70,7 @@ idlist_img <- function(params = NULL) {
       query_text <- sprintf(paste0("porder idlist --input '%s' ",
                                    "--start '%s' --end '%s' --item '%s' ",
                                    "--asset '%s' ",
-                                   "--number 1000 ",
+                                   "--number 10000 ",
                                    "--outfile '%s' ",
                                    ## May 29, 2019, add the filter option
                                    "--filter 'range:view_angle:-3:3' ",
@@ -73,7 +83,7 @@ idlist_img <- function(params = NULL) {
       query_text <- sprintf(paste0("porder idlist --input '%s' ",
                                    "--start '%s' --end '%s' --item '%s' ",
                                    "--asset '%s' ",
-                                   "--number 1000 ",
+                                   "--number 10000 ",
                                    "--outfile '%s'"), 
                             path, start_date,
                             end_date, item, 
@@ -82,7 +92,7 @@ idlist_img <- function(params = NULL) {
     
     cmd_run <- system(query_text, intern = TRUE)
     ## Arbitrary checking
-    if (!grepl("^Total", cmd_run[3])) {
+    if (!grepl("^Total", cmd_run[4])) {
       stop("Something wrong with the query, better to check.")
     }
     
@@ -160,7 +170,7 @@ download_img <- function(ids_all = NULL,
     order_text <- sprintf(paste0("porder order --name '%s_order' ",
                                  "--idlist '%s' ",
                                  "--item '%s' ",
-                                 "--asset '%s' ",
+                                 "--bundle '%s' ",
                                  "--aws '%s' ",
                                  "--op aws"),
                           prefix_geojson, orderlist_all_path, 
