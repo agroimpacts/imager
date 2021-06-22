@@ -13,7 +13,7 @@ b. Update AMIID (line 1) to the new ID, and make sure that it is alighed with am
 c. Specify the spot life cycle: change ‘ValidUntil’ in Line 9 based your need
 3) Run launch_ami_production.Run this script locally to launch a spot-based instance: 
     ```bash
-    ./launch_ami_productuion.sh
+    ./launch_ami_production.sh
     ```
 #### Step 2: run composition python script
 1) Pre-work 
