@@ -248,7 +248,7 @@ $ echo '{
 Then if you list your collections items:
 
 ```bash
-$ curl http://localhost:9091/collections/my-first-collection/items
+$ curl http://localhost:9090/collections/my-first-collection/items
 ```
 
 You'll see the item you created.
