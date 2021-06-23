@@ -10,6 +10,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Switch to stac-client directory
+        run: cd stac-client
       - name: Build containers
         run: docker-compose -f docker-compose.yml -f docker-compose.test.yml build
       - name: Start services that tests depend on
