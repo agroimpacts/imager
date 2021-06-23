@@ -2,7 +2,7 @@ version: '2.3'
 services:
   python-test:
     build:
-      context: ./
+      context: ./stac-client
       dockerfile: Dockerfile.test
     links:
       - franklin:franklin.service.internal
