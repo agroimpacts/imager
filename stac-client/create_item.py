@@ -2,7 +2,7 @@ import datetime as dt
 import json
 import logging
 import sys
-from urllib.parse import quote
+from typing import Optional
 
 import click
 import rasterio
@@ -51,23 +51,6 @@ class COGPathType(ParamType):
             self.fail(f"Could not read a COG at {value}: {e}")
 
 
-@click.command()
-@click.argument("item-id", type=str)
-@click.argument("datetime", type=click.DateTime())
-@click.argument("cog-path", type=COGPathType())
-@click.argument("collection-id", type=str)
-@click.option("--eo-data", type=click.Path(exists=True), help=eo_help)
-@click.option("--cloud-cover", type=float, help="Estimated cloud cover of the image")
-@click.option(
-    "--api-host",
-    help="The root of the STAC API you'd like to interact with. Defaults to localhost:9090",
-    default="localhost:9090",
-)
-@click.option(
-    "--api-scheme",
-    help="The scheme to use for API communication. Defaults to http",
-    default="http",
-)
 def create_item(
     item_id,
     datetime,
@@ -110,6 +93,7 @@ def create_item(
             x["href"] for x in api_item["links"] if x["rel"].lower() == "parent"
         ][0]
         logger.info(f"Created item at {item_parent_link}/items/{api_item['id']}")
+        return api_item
     except HTTPError as e:
         logger.error(
             f"Something went wrong while creating your collection: {resp.content}"
@@ -117,5 +101,44 @@ def create_item(
         raise
 
 
+@click.command()
+@click.argument("item-id", type=str)
+@click.argument("datetime", type=click.DateTime())
+@click.argument("cog-path", type=COGPathType())
+@click.argument("collection-id", type=str)
+@click.option("--eo-data", type=click.Path(exists=True), help=eo_help)
+@click.option("--cloud-cover", type=float, help="Estimated cloud cover of the image")
+@click.option(
+    "--api-host",
+    help="The root of the STAC API you'd like to interact with. Defaults to localhost:9090",
+    default="localhost:9090",
+)
+@click.option(
+    "--api-scheme",
+    help="The scheme to use for API communication. Defaults to http",
+    default="http",
+)
+def create_item_cmd(
+    item_id: str,
+    datetime: dt.datetime,
+    cog_path: str,
+    collection_id: str,
+    eo_data: str,
+    cloud_cover: Optional[float],
+    api_host: str,
+    api_scheme: str,
+):
+    return create_item(
+        item_id,
+        datetime,
+        cog_path,
+        collection_id,
+        eo_data,
+        cloud_cover,
+        api_host,
+        api_scheme,
+    )
+
+
 if __name__ == "__main__":
-    create_item()
+    create_item_cmd()

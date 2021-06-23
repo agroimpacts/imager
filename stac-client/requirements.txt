@@ -1,4 +1,3 @@
-boto3==1.17.98
 click==8.0.1
 pystac==1.0.0-rc.1
 rasterio==1.2.6
