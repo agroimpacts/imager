@@ -6,8 +6,8 @@ services:
       - POSTGRES_USER=franklin
       - POSTGRES_PASSWORD=franklin
       - POSTGRES_DB=franklin
-    ports:
-      - "5432:5432"
+    expose:
+      - 5432
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "franklin"]
       interval: 3s
