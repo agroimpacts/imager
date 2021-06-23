@@ -1,0 +1,14 @@
+version: '2.3'
+services:
+  python-test:
+    build:
+      context: ./
+      dockerfile: Dockerfile.test
+    links:
+      - franklin:franklin.service.internal
+  franklin:
+    environment:
+      - DB_NAME=franklin-test
+  database:
+    environment:
+      - POSTGRES_DB=franklin-test
