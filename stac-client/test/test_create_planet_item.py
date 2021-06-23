@@ -2,8 +2,6 @@ from datetime import datetime, timedelta
 from random import choices
 from string import ascii_lowercase
 
-import pytest
-
 from ..create_collection import create_collection
 from ..create_item import create_item
 
