@@ -1,0 +1,24 @@
+{
+    "eo:bands": [
+        {
+            "name": "blue",
+            "common_name": "blue",
+            "center_wavelength": 0.475
+        },
+        {
+            "name": "green",
+            "common_name": "green",
+            "center_wavelength": 0.555
+        },
+        {
+            "name": "red",
+            "common_name": "red",
+            "center_wavelength": 0.6575
+        },
+        {
+            "name": "near infrared",
+            "common_name": "nir",
+            "center_wavelength": 0.805
+        }
+    ]
+}
