@@ -359,3 +359,73 @@ $ python create_item.py my-great-item 2021-02-01 ./test/data/mask-cog.tif my-gre
 ```
 
 Note that `./test/data/mask-cog.tif` won't be accessible to your local Franklin instance, but this example shows at least how to use the script.
+
+## Development
+
+Development relies on having a `python` interpreter and a few dependencies. You can get an environment set up with:
+
+```bash
+$ python3 -m pip install virtualenv
+$ python3 -m virtualenv venv
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+```
+
+### Adding a new script
+
+The existing scripts are intended to be a good guide to what your new scripts might look like. These scripts have a few components:
+
+1. A _command_. The function decorated with `@click.command()` is what the CLI will invoke. You can see examples of arguments and options for commands in the existing scripts.
+2. Custom types. You might have special validation rules for command line arguments, for example, "this should be a list of four floats" for bounding boxes. You can implement these kinds of validation rules by subclassing the `ParamType` class from `click`. You can see examples in `create_collection.py` for the `BboxType` and `create_item.py` for the `COGPathType`.
+3. A function responsible for interacting with Franklin. In both `create_collection.py` and `create_item.py`, the function responsible for doing API interaction is separate from the command that calls it. The reason for this is that separating the function allows calling it outside of the CLI context. You can see how that's valuable in tests for the [collection script](./test/test_create_collection.py) or the [item script](./test/test_create_item.py).
+
+These three components are likely to be pretty common across scripts for API interaction.
+
+### Adding a test
+
+Tests in continuous integration currently use `pytest`. `pytest` will [discover](https://docs.pytest.org/en/6.2.x/goodpractices.html#conventions-for-python-test-discovery) tests in the `test/` directory in files that start with `test_` if the test function's name starts with `test_`. 
+
+For example, let's say you have a new script called `add_foo_to_item.py` that adds a property `{"foo": 3}` to an item in a collection using the item `PATCH` endpoint. Your command line invocation might look like:
+
+```bash
+$ python add_foo_to_item.py item-id collection-id
+```
+
+You would have a function in that script like:
+
+```python
+def add_foo(item_id, collection_id):
+    ...
+```
+
+and a command like:
+
+```python
+@click.command()
+def add_foo_command(item_id, collection_id):
+    return add_foo(item_id, collection_id)
+```
+
+To test this, you would create a file called `test_add_foo_to_item.py`. In that test file, you would have a function called `test_add_foo()` that calls `add_foo` with some appropriate IDs and then asserts some properties about the result, for example, that the returned item has a property `foo` with a value equal to 3.
+
+### Running tests
+
+Once you've written your tests, you can run them. The testing setup is containerized so that the environment will always be consistent -- no matter what you do in your system python, the containerized environment will be the same.
+
+To run tests you need to build the test environment and then run it. Both steps can be accomplished with single commands.
+
+To build the environment, run:
+
+```bash
+$ docker-compose -f docker-compose.yml -f docker-compose.test.yml build
+```
+
+This will assemble the testing container based on the required python dependencies and source files from this repository.
+
+To run the tests, run:
+
+```bash
+$ docker-compose -f docker-compose.yml -f docker-compose.test.yml run python-test
+```
+
+That will discover the tests in the `test/` directory and execute them, while giving you a summary of how it went. You can see examples in the [continuous integration output from pull requests](https://github.com/agroimpacts/imager/runs/2897638668).
