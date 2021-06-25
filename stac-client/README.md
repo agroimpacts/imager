@@ -26,7 +26,7 @@ To verify that everything's running correctly, you can make a request for the la
 $ curl http://localhost:9090/
 ```
 
-## Adding data
+## Adding data the hard way
 
 To see the collections available in your copy of Franklin, you can make a request to the `/collections` endpoint:
 
@@ -256,3 +256,176 @@ You'll see the item you created.
 Most STAC interaction is pretty much like this -- it centers on items and collections, and sometimes
 some extra metadata that you can attach to collections and items. Scripts in this directory will make that interaction
 easier and do it with Python instead of bash commands.
+
+## Adding data with scripts
+
+### Creating a collection with `create_collection.py`
+
+Some of the information above will be pretty consistent, or at least we can choose sensible defaults. For example, the
+license on collections could default to proprietary, optional fields could default to `null`, etc.
+Because of that, we should be able to create collections without having to supply the whole JSON document. That's what the
+`create_collection.py` script is for:
+
+```bash
+$ python create_collection.py --help
+Usage: create_collection.py [OPTIONS] NAME
+
+Options:
+  -d, --description TEXT          Collection description. This should be a
+                                  short punchy phrase that describes what
+                                  kinds of items can be found in this
+                                  collection
+  --bbox BBOX                     Bounding box in comma-separated lower left
+                                  x, lower left y, upper right x, upper right
+                                  y format. This will expand as you add items,
+                                  so picking a small bbox in the appropriate
+                                  area makes sense to start.
+  --start-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
+                                  Datetime marking the beginning of coverage
+                                  for this collection. Provide as an ISO 8601
+                                  timestamp without a time zone -- it will be
+                                  parsed as UTC. Defaults to now.
+  --end-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
+                                  Datetime marking the end of coverage for
+                                  this collection. Provide as an ISO 8601
+                                  timestamp without a time zone -- it will be
+                                  parsed as UTC. Defaults to now.
+  --license TEXT                  License of the underlying data. You can use
+                                  identifiers from
+                                  https://spdx.github.io/license-list-data/ in
+                                  this field or the string "proprietary"
+  --api-host TEXT                 The root of the STAC API you'd like to
+                                  interact with. Defaults to localhost:9090
+  --api-scheme TEXT               The scheme to use for API communication.
+                                  Defaults to http
+  --help                          Show this message and exit.
+```
+
+Generally speaking, it's valuable to specify at least the beginning `--start-date` and `--end-date`
+and a `--bbox` in the appropriate area where you expect to add data. These fields are valuable
+for getting a quick summary of where and when items in this collection are located. If you're not
+pointing to a local Franklin instance, you can override where the server lives with the `--api-host`
+and `--api-scheme` arguments. And if you want to override the `--license` or `--description`, you can
+provide strings for those as well.
+
+For a small example, you could create a collection like this, if you have the local server and database
+running:
+
+```bash
+$ python create_collection.py --start-date '2021-01-01' --end-date '2021-05-01' --bbox 0,0,1,1 'my-great-collection'
+```
+
+### Creating an item with `create_item.py`
+
+Items are a little bit more restrictive -- more of their fields are required. For `create_item.py`, we also add
+a restriction that we _must_ have a COG asset available. Help for `create_item.py` looks like this:
+
+```bash
+$ python create_item.py --help
+Usage: create_item.py [OPTIONS] ITEM_ID [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d
+                      %H:%M:%S] COG_PATH COLLECTION_ID
+
+Options:
+  --eo-data PATH       Path to JSON containing information to fill in the EO
+                       extension for this item. You can read more about the EO
+                       extension at https://github.com/stac-
+                       extensions/eo/tree/v1.0.0
+  --cloud-cover FLOAT  Estimated cloud cover of the image
+  --api-host TEXT      The root of the STAC API you'd like to interact with.
+                       Defaults to localhost:9090
+  --api-scheme TEXT    The scheme to use for API communication. Defaults to
+                       http
+  --help               Show this message and exit.
+```
+
+For creating an item, more fields are required:
+
+- `ITEM_ID` is the id of the item. This must be unique across all items you create, so choose IDs that convey enough information that you won't have collisions.
+- The next required argument is the timestamp --  you can see that there are several accepted formats, but often just `YYYY-MM-DD` will be enough unless you need the additional precision.
+- Next is the `COG_PATH`, which is a URI pointing to a COG somewhere that you're capable of reading. You have to be able to read from the location because the script reads some metadata from the COG to figure out geographic information about the item.
+- The last required field is the `COLLECTION_ID`. Items in STAC APIs must be in collections, and this ID indicates which collection this item belongs in.
+
+There are some other optional fields as well:
+
+- `--eo-data` takes a path to an object with an `eo:bands` key. You can see an example in [`./planet-eo.json`](./planet-eo.json). These JSON documents are analogous to datasources in Raster Foundry.
+- `--cloud-cover` takes a float estimating the quantity of cloud cover in the image. You don't have to provide this value, but it might be valuable for searching for items later, once you have a lot of them.
+
+`--api-host` and `--api-scheme` serve the same purpose here as in the `create_collection.py` script.
+
+For a small example, you could create an item in the collection you created in the previous section like:
+
+```bash
+$ python create_item.py my-great-item 2021-02-01 ./test/data/mask-cog.tif my-great-collection --eo-data ./planet-eo.json --cloud-cover 10
+```
+
+Note that `./test/data/mask-cog.tif` won't be accessible to your local Franklin instance, but this example shows at least how to use the script.
+
+## Development
+
+Development relies on having a `python` interpreter and a few dependencies. You can get an environment set up with:
+
+```bash
+$ python3 -m pip install virtualenv
+$ python3 -m virtualenv venv
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+```
+
+### Adding a new script
+
+The existing scripts are intended to be a good guide to what your new scripts might look like. These scripts have a few components:
+
+1. A _command_. The function decorated with `@click.command()` is what the CLI will invoke. You can see examples of arguments and options for commands in the existing scripts.
+2. Custom types. You might have special validation rules for command line arguments, for example, "this should be a list of four floats" for bounding boxes. You can implement these kinds of validation rules by subclassing the `ParamType` class from `click`. You can see examples in `create_collection.py` for the `BboxType` and `create_item.py` for the `COGPathType`.
+3. A function responsible for interacting with Franklin. In both `create_collection.py` and `create_item.py`, the function responsible for doing API interaction is separate from the command that calls it. The reason for this is that separating the function allows calling it outside of the CLI context. You can see how that's valuable in tests for the [collection script](./test/test_create_collection.py) or the [item script](./test/test_create_item.py).
+
+These three components are likely to be pretty common across scripts for API interaction.
+
+### Adding a test
+
+Tests in continuous integration currently use `pytest`. `pytest` will [discover](https://docs.pytest.org/en/6.2.x/goodpractices.html#conventions-for-python-test-discovery) tests in the `test/` directory in files that start with `test_` if the test function's name starts with `test_`. 
+
+For example, let's say you have a new script called `add_foo_to_item.py` that adds a property `{"foo": 3}` to an item in a collection using the item `PATCH` endpoint. Your command line invocation might look like:
+
+```bash
+$ python add_foo_to_item.py item-id collection-id
+```
+
+You would have a function in that script like:
+
+```python
+def add_foo(item_id, collection_id):
+    ...
+```
+
+and a command like:
+
+```python
+@click.command()
+def add_foo_command(item_id, collection_id):
+    return add_foo(item_id, collection_id)
+```
+
+To test this, you would create a file called `test_add_foo_to_item.py`. In that test file, you would have a function called `test_add_foo()` that calls `add_foo` with some appropriate IDs and then asserts some properties about the result, for example, that the returned item has a property `foo` with a value equal to 3.
+
+### Running tests
+
+Once you've written your tests, you can run them. The testing setup is containerized so that the environment will always be consistent -- no matter what you do in your system python, the containerized environment will be the same.
+
+To run tests you need to build the test environment and then run it. Both steps can be accomplished with single commands.
+
+To build the environment, run:
+
+```bash
+$ docker-compose -f docker-compose.yml -f docker-compose.test.yml build
+```
+
+This will assemble the testing container based on the required python dependencies and source files from this repository.
+
+To run the tests, run:
+
+```bash
+$ docker-compose -f docker-compose.yml -f docker-compose.test.yml run python-test
+```
+
+That will discover the tests in the `test/` directory and execute them, while giving you a summary of how it went. You can see examples in the [continuous integration output from pull requests](https://github.com/agroimpacts/imager/runs/2897638668).
