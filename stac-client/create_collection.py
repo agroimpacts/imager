@@ -14,6 +14,7 @@ import requests
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 
 class BboxType(ParamType):
@@ -72,10 +73,13 @@ def create_collection(
     collection.links = []
 
     try:
+        logger.info(f"Request json: {collection.to_dict()}")
         resp = requests.post(
             f"{api_scheme}://{api_host}/collections", json=collection.to_dict()
         )
         resp.raise_for_status()
+        api_collection = resp.json()
+        logger.info(f"Created collection at /collections/{api_collection['id']}")
         return resp.json()
     except requests.HTTPError as e:
         logger.error(
