@@ -82,6 +82,9 @@ def create_item(
         properties=eo_bands | {"eo:cloud_cover": cloud_cover},
     )
 
+    asset = Asset(href=cog_path, title="COG", media_type=MediaType.COG, roles=["data"])
+    item.add_asset("cog", asset)
+
     try:
         resp = requests.post(
             f"{api_scheme}://{api_host}/collections/{collection_id.replace(' ', '+')}/items",
