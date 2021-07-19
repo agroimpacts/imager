@@ -74,12 +74,14 @@ def create_item(
         lat_long_geom = Polygon.from_bounds(*bbox)
         lat_long_geom_geojson = mapping(lat_long_geom)
 
+    cloud_cover_dict = {"eo:cloud_cover": cloud_cover}
+
     item = Item(
         item_id,
         lat_long_geom_geojson,
         bbox,
         datetime,
-        properties=eo_bands | {"eo:cloud_cover": cloud_cover},
+        properties={**eo_bands, **cloud_cover_dict},
     )
 
     asset = Asset(href=cog_path, title="COG", media_type=MediaType.COG, roles=["data"])
