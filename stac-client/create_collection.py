@@ -100,19 +100,19 @@ def create_collection(
     "--bbox",
     help="Bounding box in comma-separated lower left x, lower left y, upper right x, upper right y format. This will expand as you add items, so picking a small bbox in the appropriate area makes sense to start.",
     type=BBOX_TYPE,
-    default=[0, 0, 0, 0],
+    required=True,
 )
 @click.option(
     "--start-date",
     help=f"Datetime marking the beginning of coverage for this collection. {time_format_hint}",
     type=click.DateTime(),
-    default=None,
+    required=True,
 )
 @click.option(
     "--end-date",
     help=f"Datetime marking the end of coverage for this collection. {time_format_hint}",
     type=click.DateTime(),
-    default=None,
+    required=True,
 )
 @click.option(
     "--license",
