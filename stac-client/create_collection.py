@@ -1,3 +1,4 @@
+from bbox import BBOX_TYPE
 from datetime import datetime
 import logging
 import sys
@@ -16,32 +17,6 @@ handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-
-class BboxType(ParamType):
-
-    name = "bbox"
-
-    def convert(self, value, param, ctx):
-        # we're in the default case, so just return it
-        if value == [0, 0, 0, 0]:
-            return value
-
-        try:
-            num_strings = value.split(",")
-            converted = [float(x) for x in num_strings]
-            if len(converted) == 4:
-                return converted
-            else:
-                self.fail(
-                    f"Needed exactly four values for the bounding box. Got {len(converted)}."
-                )
-        except ValueError as e:
-            self.fail(
-                f"Could not read a bbox rom the string for param {param}. Value: {value}: {e}"
-            )
-
-
-BBOX_TYPE = BboxType()
 
 time_format_hint = "Provide as an ISO 8601 timestamp without a time zone -- it will be parsed as UTC. Defaults to now."
 
