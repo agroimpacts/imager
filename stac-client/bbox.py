@@ -11,7 +11,10 @@ class BboxType(ParamType):
             return value
 
         try:
-            num_strings = value.split(",")
+            if isinstance(value, list):
+                num_strings = value
+            else:
+                num_strings = value.split(",")
             converted = [float(x) for x in num_strings]
             if len(converted) == 4:
                 return converted
@@ -21,7 +24,7 @@ class BboxType(ParamType):
                 )
         except ValueError as e:
             self.fail(
-                f"Could not read a bbox rom the string for param {param}. Value: {value}: {e}"
+                f"Could not read a bbox from the string for param {param}. Value: {value}: {e}"
             )
 
 
