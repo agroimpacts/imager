@@ -1,10 +1,7 @@
 from create_mosaic_definition import create_mosaic_definition
-import csv
 from datetime import datetime, timedelta
-import os
 from random import choices
 from string import ascii_lowercase
-import tempfile
 
 from ..create_collection import create_collection
 from ..create_item import create_item
@@ -13,7 +10,6 @@ from ..create_item import create_item
 def test_create_mosaic():
     collection_id_str = "".join(choices(ascii_lowercase, k=15))
     item_id_str = "".join(choices(ascii_lowercase, k=15))
-    items_csv_path = "".join(choices(ascii_lowercase, k=15))
     collection_id = create_collection(
         collection_id_str,
         "test collection",
