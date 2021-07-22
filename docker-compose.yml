@@ -16,7 +16,7 @@ services:
       start_period: 5s
     command: postgres -c log_statement=all
   franklin:
-    image: quay.io/azavea/franklin:1a6c6a2
+    image: quay.io/azavea/franklin:b83e39c
     depends_on:
       database:
         condition: service_healthy
