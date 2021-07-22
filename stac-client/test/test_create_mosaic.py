@@ -1,10 +1,10 @@
-from create_mosaic_definition import create_mosaic_definition
 from datetime import datetime, timedelta
 from random import choices
 from string import ascii_lowercase
 
 from ..create_collection import create_collection
 from ..create_item import create_item
+from ..create_mosaic_definition import create_mosaic_definition
 
 
 def test_create_mosaic():
