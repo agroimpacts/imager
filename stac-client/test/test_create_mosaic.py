@@ -2,11 +2,16 @@ from datetime import datetime, timedelta
 from random import choices
 from string import ascii_lowercase
 
+import pytest
+
 from ..create_collection import create_collection
 from ..create_item import create_item
 from ..create_mosaic_definition import create_mosaic_definition
 
 
+@pytest.mark.skip(
+    reason="Creating a mosaic requires reading histograms from the asset, which the server can't do for the local file here"
+)
 def test_create_mosaic():
     collection_id_str = "".join(choices(ascii_lowercase, k=15))
     item_id_str = "".join(choices(ascii_lowercase, k=15))
