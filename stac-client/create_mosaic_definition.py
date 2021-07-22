@@ -1,14 +1,17 @@
-from click.types import ParamType
-from bbox import BBOX_TYPE
 import csv
 import logging
 import sys
 from typing import List, Optional, Tuple
 from uuid import uuid4
 
-import requests
 
 import click
+from click.types import ParamType
+import requests
+
+
+from .bbox import BBOX_TYPE
+
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
