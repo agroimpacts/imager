@@ -42,7 +42,7 @@ def create_mosaic_definition(
     description: Optional[str],
     center_xy: Tuple[float, float],
     center_zoom: int,
-    items: List[Tuple[str, str]],
+    items: List[dict],
     min_zoom: int,
     max_zoom: int,
     bounds: List[float],
