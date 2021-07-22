@@ -1,15 +1,15 @@
-from bbox import BBOX_TYPE
 from datetime import datetime
 import logging
 import sys
 from typing import List, Optional
 
 import click
-from click.types import ParamType
 from pystac import Collection
 from pystac.catalog import CatalogType
 from pystac.collection import Extent, SpatialExtent, TemporalExtent
 import requests
+
+from .bbox import BBOX_TYPE
 
 
 logger = logging.getLogger(__name__)
