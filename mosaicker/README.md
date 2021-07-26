@@ -1,3 +1,3 @@
 # mosaicker 
 
-Tentative location and rough draft of code to create mosaicks and COGify prediction maps (and possibly )
+Tentative location and rough draft of code to create mosaicks and COGify prediction maps (and possibly composited tiles). 
