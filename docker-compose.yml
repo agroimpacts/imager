@@ -34,7 +34,7 @@ services:
       - DB_NAME=franklin
       - DB_USER=franklin
       - DB_PASSWORD=franklin
-      - AWS_PROFILE
+      - AWS_PROFILE=default
       - AWS_REGION
     links:
       - database:database.service.internal
