@@ -7,4 +7,4 @@ read aoi_id
 
 conda activate composite
 python $composite_exe --aoi=$aoi_id --threads_number=$threads_num --config_filename=$config_filenm
-mail -s "Composition Finished!" ***REMOVED*** <<< 'The composition task for finished: aoi'$aoi_id
+mail -s "Composition Finished!" <email address> <<< 'The composition task for finished: aoi'$aoi_id

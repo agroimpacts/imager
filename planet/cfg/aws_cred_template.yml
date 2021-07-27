@@ -1,5 +1,5 @@
 amazon_s3:
-    bucket: "***REMOVED***"
+    bucket: "bucket"
     aws_region: "us-east-1"
     aws_access_key_id: 
     aws_secret_access_key: 

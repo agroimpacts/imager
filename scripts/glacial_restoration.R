@@ -68,4 +68,4 @@ write.table(key, '***REMOVED***/url_planet_4bands_selected_test.txt', col.names 
 cmd <- paste0('aws s3api restore-object --bucket ***REMOVED*** --key ', key, '--restore-request Days=7,GlacierJobParameters={"Tier"="Bulk"}')
 system(cmd)
 
-aws s3api restore-object --bucket ***REMOVED*** --key planet/analytic_sr_all/059c6c3e-7f51-43cf-9228-b7dcfdbcc2a0/1/files/PSScene4Band/20171231_105752_0f53/analytic_sr/20171231_105752_0f53_3B_AnalyticMS_SR.tif --restore-request '{"Days":7,"GlacierJobParameters":{"Tier":"Bulk"}}'
+# aws s3api restore-object --bucket ***REMOVED*** --key planet/analytic_sr_all/059c6c3e-7f51-43cf-9228-b7dcfdbcc2a0/1/files/PSScene4Band/20171231_105752_0f53/analytic_sr/20171231_105752_0f53_3B_AnalyticMS_SR.tif --restore-request '{"Days":7,"GlacierJobParameters":{"Tier":"Bulk"}}'

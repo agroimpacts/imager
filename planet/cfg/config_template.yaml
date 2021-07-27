@@ -31,7 +31,7 @@ imagery:
   ## Fix mode doesn't save out the csvs
   mode: 1
   aws_cred: cfg/aws_cred.yml
-  catalog_composite_s3: ***REMOVED***
+  catalog_composite_s3: s3://path/
 
 database:
   # test or production
@@ -50,7 +50,7 @@ rasterfoundry:
   tileVisibility: PRIVATE
 probability:
   s3_header: /vsis3
-  s3_bucket: ***REMOVED***
+  s3_bucket: bucket
   s3_tiff_perfix: classified-images/congo/
   s3_cogtiff_perfix: classified-images/congo_cog
   s3_catalog_prob: classified-images/probability_catalog_congo.csv
