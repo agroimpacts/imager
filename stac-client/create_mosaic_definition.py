@@ -10,7 +10,7 @@ from click.types import ParamType
 import requests
 
 
-from .bbox import BBOX_TYPE
+from bbox import BBOX_TYPE
 
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,7 @@ from pystac.catalog import CatalogType
 from pystac.collection import Extent, SpatialExtent, TemporalExtent
 import requests
 
-from .bbox import BBOX_TYPE
+from bbox import BBOX_TYPE
 
 
 logger = logging.getLogger(__name__)
