@@ -4,43 +4,19 @@ import sys
 from typing import List, Optional
 
 import click
-from click.types import ParamType
 from pystac import Collection
 from pystac.catalog import CatalogType
 from pystac.collection import Extent, SpatialExtent, TemporalExtent
 import requests
 
+from .bbox import BBOX_TYPE
+
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
-
-class BboxType(ParamType):
-
-    name = "bbox"
-
-    def convert(self, value, param, ctx):
-        # we're in the default case, so just return it
-        if value == [0, 0, 0, 0]:
-            return value
-
-        try:
-            num_strings = value.split(",")
-            converted = [float(x) for x in num_strings]
-            if len(converted) == 4:
-                return converted
-            else:
-                self.fail(
-                    f"Needed exactly four values for the bounding box. Got {len(converted)}."
-                )
-        except ValueError as e:
-            self.fail(
-                f"Could not read a bbox rom the string for param {param}. Value: {value}: {e}"
-            )
-
-
-BBOX_TYPE = BboxType()
 
 time_format_hint = "Provide as an ISO 8601 timestamp without a time zone -- it will be parsed as UTC. Defaults to now."
 
@@ -72,10 +48,13 @@ def create_collection(
     collection.links = []
 
     try:
+        logger.info(f"Request json: {collection.to_dict()}")
         resp = requests.post(
             f"{api_scheme}://{api_host}/collections", json=collection.to_dict()
         )
         resp.raise_for_status()
+        api_collection = resp.json()
+        logger.info(f"Created collection at /collections/{api_collection['id']}")
         return resp.json()
     except requests.HTTPError as e:
         logger.error(
@@ -96,19 +75,19 @@ def create_collection(
     "--bbox",
     help="Bounding box in comma-separated lower left x, lower left y, upper right x, upper right y format. This will expand as you add items, so picking a small bbox in the appropriate area makes sense to start.",
     type=BBOX_TYPE,
-    default=[0, 0, 0, 0],
+    required=True,
 )
 @click.option(
     "--start-date",
     help=f"Datetime marking the beginning of coverage for this collection. {time_format_hint}",
     type=click.DateTime(),
-    default=None,
+    required=True,
 )
 @click.option(
     "--end-date",
     help=f"Datetime marking the end of coverage for this collection. {time_format_hint}",
     type=click.DateTime(),
-    default=None,
+    required=True,
 )
 @click.option(
     "--license",
