@@ -37,9 +37,9 @@ database:
   # test or production
   mode: test
   db_host: mapper0.crowdmapper.org
-  db_password: 
-  db_production_name: Africa
-  db_sandbox_name: AfricaSandbox
+  db_password: db_pw
+  db_production_name: db_name
+  db_sandbox_name: db_sandbox_name
   db_username: 
 
 rasterfoundry:
@@ -50,7 +50,7 @@ rasterfoundry:
   tileVisibility: PRIVATE
 probability:
   s3_header: /vsis3
-  s3_bucket: bucket
+  s3_bucket: s3bucketname
   s3_tiff_perfix: classified-images/congo/
   s3_cogtiff_perfix: classified-images/congo_cog
   s3_catalog_prob: classified-images/probability_catalog_congo.csv

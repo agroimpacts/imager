@@ -5,22 +5,22 @@
 ### Get instance ID of 
 # instance ID of disk you want to image
 ```bash
-IID=***REMOVED***
-instance_name=mapper-compositer
-description=Compositor_image2
+IID=instance-id-here
+instance_name=name-of-ami
+description=description-of-ami
 aws ec2 create-image --instance-id $IID --name $instance_name --description $description
 ```
 
 ## Create new instance
 ```bash
-AMIID=***REMOVED***
+AMIID=ami-id
 ITYPE=t2.2xlarge
-KEYNAME=***REMOVED***
-SECURITY=***REMOVED***
-INAME=***REMOVED***
-OWNER=airg
-SDASIZE=70
-IAM=***REMOVED***
+KEYNAME=pem-name
+SECURITY=security-group-name
+INAME=new-instance-name
+OWNER=owner-name
+SDASIZE=volume-size-mb
+IAM=iam-role-name
 
 aws ec2 run-instances --image-id $AMIID --count 1 --instance-type $ITYPE --iam-instance-profile Name=$IAM --key-name $KEYNAME --security-groups $SECURITY  --block-device-mapping "[ { \"DeviceName\": \"/dev/sda1\", \"Ebs\": { \"VolumeSize\": $SDASIZE } } ]" --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value='$INAME'}]' 'ResourceType=volume,Tags=[{Key=Owner,Value='$OWNER'}]' 
 ```
@@ -30,7 +30,7 @@ aws ec2 run-instances --image-id $AMIID --count 1 --instance-type $ITYPE --iam-i
 
 In your local shell, run this:
 ```bash
-IID=***REMOVED***
+IID=new-instance-id
 aws ec2 start-instances --instance-ids $IID
 ```
 

@@ -2,10 +2,7 @@ library(aws.s3)
 library(sf)
 library(dplyr)
 
-
-# common_path <- "***REMOVED***"
-# common_path <- "***REMOVED***"
-common_path <- "***REMOVED***"
+common_path <- "/some/path/"
 params <- yaml::yaml.load_file(file.path(common_path, 'cvmapper_config_composite.yaml'))
 Sys.setenv("AWS_ACCESS_KEY_ID" = params$cvml$aws_access,
            "AWS_SECRET_ACCESS_KEY" = params$cvml$aws_secret,

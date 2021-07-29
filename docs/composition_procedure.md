@@ -19,7 +19,7 @@ c. Specify the spot life cycle: change ‘ValidUntil’ in Line 9 based your nee
 1) Pre-work 
 Log into the composition instance you just launched 
     ```bash
-    ssh ubuntu@ec2-**-**-**-***.compute-1.amazonaws.com
+    ssh ubuntu@ec2-ip-address
     cd /home/ubuntu/imager/scripts
     ```
     
