@@ -1,5 +1,5 @@
 click==8.0.1
-pystac==1.0.0-rc.1
+pystac==1.0.1
 rasterio==1.2.6
 requests==2.25.1
 rio-cogeo==2.2.3
