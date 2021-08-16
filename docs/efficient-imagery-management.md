@@ -111,7 +111,7 @@ The source resolution hasn't changed, so now we have overviews for 20, 40, and
 80 meters for the sides of each pixel.
 
 Let's consider the low zoom case where a single TMS tile request covers all of
-data andthe desired pixel size is about 640m. Assume that the source image is
+data and the desired pixel size is about 640m. Assume that the source image is
 perfectly tiled in the sense that the tiles here cover exactly the same area. We
 have a 6x6 grid of tiles that contribute to the image. For each tile, the
 smallest overview we have is 312x312. The server will have to read all of that
