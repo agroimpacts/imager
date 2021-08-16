@@ -147,6 +147,6 @@ You can run `gdalinfo data/cogified-vrt.tiff` to verify that we've recovered the
 overviews down to 208x212.
 
 Then, since Franklin creates mosaics from specific items, you can create a new
-item pointing to your COGified tiff, a new mosaic definition including only that
-item, and then point to the specific tile URL for that mosaic in the client
-program or interface.
+item pointing to your combined and COGified tiff, a new mosaic definition
+including only that item, and then point to the specific tile URL for that
+mosaic in the client program or interface.
