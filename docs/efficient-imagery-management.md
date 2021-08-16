@@ -127,7 +127,7 @@ from each tiff.
 This isn't to say that all mosaics are bad and you shouldn't use them. Sometimes
 mosaics make sense. However, if you find yourself in a situation where the
 server appears to be significantly slower than makes sense, one bit of recourse
-you can try is to combine some of the images that contribute at rest.
+you can try is to combine some of the images that contribute.
 
 You can combine COGs into larger COGs using `gdalbuildvrt` and `gdal_translate`.
 
