@@ -21,7 +21,7 @@ go to get to a specific tile in a specific overview.
 
 The cloud-optimized part refers to those headers and their efficiency in server
 settings that support HTTP Get range requests. A server can serve the `bar.tiff`
-resource at `http://foo.com/bar.tiff`, and `bar.tiff` is a COG, and the server
+resource at `http://foo.com/bar.tiff`. If `bar.tiff` is a COG, and the server
 supports range requests, then a client can:
 
 - make a metadata request to `bar.tiff` to read the metadata explaining where
