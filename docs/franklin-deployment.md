@@ -104,3 +104,11 @@ you should ensure that the related user has permission to read from s3. If the E
 configured, you can allow access to s3 from the instance by
 [creating an IAM instance profile](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-instance-access-s3-bucket/)
 with the appropriate permissions.
+
+## Performance monitoring
+
+The running Franklin service will consume CPU and memory on your EC2 instance. To see whether
+your instance has spare capacity, you can select your instance, then in the pane below the list of instances,
+select the "Monitoring" tab. CPU utilization is the first metric shown there. To monitor memory utilization,
+you'll need to use CloudWatch Metrics. If you need to do that and are unable, email someone from Azavea and they
+can walk you through how.
