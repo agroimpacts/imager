@@ -172,7 +172,7 @@ Once you have a collection, you can add items to it. An _item_ is an individual 
   "links": [],
   "assets": {
     "data": {
-      "href": "s3://rasterfoundry-production-data-us-east-1/demo-cogs/s2-canary-islands-rgb-cog.tif",
+      "href": "s3://rasterfoundry-production-data-us-east-1/demo-data/s2-canary-islands-rgb-cog.tif",
       "title": "RGB COG from Sentinel-2 bands",
       "description": "Composite image from bands 4, 3, and 2 of a Sentinel-2 image over the Canary Islands",
       "roles": ["data"],
@@ -231,7 +231,7 @@ $ echo '{
   "links": [],
   "assets": {
     "data": {
-      "href": "s3://rasterfoundry-production-data-us-east-1/demo-cogs/s2-canary-islands-rgb-cog.tif",
+      "href": "s3://rasterfoundry-production-data-us-east-1/demo-data/s2-canary-islands-rgb-cog.tif",
       "title": "RGB COG from Sentinel-2 bands",
       "description": "Composite image from bands 4, 3, and 2 of a Sentinel-2 image over the Canary Islands",
       "roles": ["data"],
